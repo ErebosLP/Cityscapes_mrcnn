@@ -18,5 +18,3 @@ That should cover the basics. If there are any questions dont mind asking us.
 Best regards
 
 Mariele and Jean-Marie 
-
-<pre>Text I want left alone@donotlink.me</pre>
