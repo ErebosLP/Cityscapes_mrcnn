@@ -218,7 +218,7 @@ def main():
     numImages_total = 1
     numValImages = 1
     numTrainImages = 1
-    numEpochs = 1
+    numEpochs = 20
     learningRate = base_lr
 
 
