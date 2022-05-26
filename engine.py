@@ -1,0 +1,150 @@
+import math
+import sys
+import time
+import torch
+
+import torchvision.models.detection.mask_rcnn
+
+from coco_utils import get_coco_api_from_dataset
+from coco_eval import CocoEvaluator
+import utils
+
+
+def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
+
+    #in abhängigkeit der epoche wird learning rate und hard ratio verkleinert
+    def adjust_lr_and_hard_ratio(optimizer, ep): # function just exist, if top method is run
+        
+        if ep < 3:# TODO: 10 # warming up
+            lr = 1e-4 * (ep // 5 + 1)
+            hard_ratio = 1 * 1e-2
+        elif ep < 30:
+            lr = 3e-4
+            hard_ratio = 7 * 1e-3
+        elif ep < 55:
+            lr = 1e-4
+            hard_ratio = 6 * 1e-3
+        elif ep < 80:
+            lr = 5e-5
+            hard_ratio = 5 * 1e-3
+        elif ep < 160:
+            lr = 1e-5
+            hard_ratio = 4 * 1e-3
+        else: # selbstständig hinzugefügt und ander schrittwete abgeändert
+            lr = 5e-6
+            hard_ratio = 3 * 1e-3
+       
+        for p in optimizer.param_groups:
+            p['lr'] = lr
+
+        return lr, hard_ratio # hard ratio wird beim whale network dazu verwendet einen loss zu berechnen
+
+
+    model.train()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
+    header = 'Epoch: [{}]'.format(epoch)
+
+    for images, targets in metric_logger.log_every(data_loader, print_freq, header):
+     
+        images = list(image.to(device) for image in images)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+        loss_dict = model(images, targets)
+        # print('loss dict', loss_dict)
+        losses = sum(loss for loss in loss_dict.values())
+
+        # reduce losses over all GPUs for logging purposes
+        loss_dict_reduced = utils.reduce_dict(loss_dict)
+        losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+
+        loss_value = losses_reduced.item()
+
+        if not math.isfinite(loss_value):
+            print("Loss is {}, stopping training".format(loss_value))
+            print(loss_dict_reduced)
+            sys.exit(1)
+
+
+        # TODO: hinzugefügt aus whale network für lr bestimmung
+        rate, hard_ratio = adjust_lr_and_hard_ratio(optimizer, epoch + 1) #einstellen von Learning rate (in abhängigkeit von der Epoche) und 
+        # print('change lr: '+str(rate))
+        # print('change hard_ratio: ' + str(hard_ratio))
+
+        optimizer.zero_grad()
+        losses.backward()
+        optimizer.step()
+        optimizer.zero_grad() # TODO: hinzugefügt aus whale network
+
+
+        # if lr_scheduler is not None:
+        #     lr_scheduler.step()
+
+        metric_logger.update(loss=losses_reduced, **loss_dict_reduced)
+        metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+
+    return losses # todo. das habe ich hinzugefügt für tensorboard
+
+
+def _get_iou_types(model):
+    model_without_ddp = model
+    if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+        model_without_ddp = model.module
+    iou_types = ["bbox"]
+    if isinstance(model_without_ddp, torchvision.models.detection.MaskRCNN):
+        iou_types.append("segm")
+    if isinstance(model_without_ddp, torchvision.models.detection.KeypointRCNN):
+        iou_types.append("keypoints")
+    return iou_types
+
+
+@torch.no_grad()
+def evaluate(model, data_loader, device):
+    n_threads = torch.get_num_threads()
+    # FIXME remove this and make paste_masks_in_image run on the GPU
+    torch.set_num_threads(1)
+    cpu_device = torch.device("cpu")
+    model.eval()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    header = 'Test:'
+
+    # print('engine evaluate() test 1')
+    
+    coco = get_coco_api_from_dataset(data_loader.dataset)
+    iou_types = _get_iou_types(model)
+    coco_evaluator = CocoEvaluator(coco, iou_types)
+
+    for image, targets in metric_logger.log_every(data_loader, 100, header):
+        image = list(img.to(device) for img in image)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+        torch.cuda.synchronize()
+        model_time = time.time()
+        outputs = model(image)
+
+        outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
+        model_time = time.time() - model_time
+
+        res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
+        evaluator_time = time.time()
+        coco_evaluator.update(res)
+        evaluator_time = time.time() - evaluator_time
+        metric_logger.update(model_time=model_time, evaluator_time=evaluator_time)
+
+    # gather the stats from all processes
+    metric_logger.synchronize_between_processes()
+    print("Averaged stats:", metric_logger)
+    coco_evaluator.synchronize_between_processes()
+
+    # accumulate predictions from all images
+    coco_evaluator.accumulate()
+    statistic = coco_evaluator.summarize()
+    print('statistic engine', statistic)
+    torch.set_num_threads(n_threads)
+
+    # print('coco_evaluator', coco_evaluator)
+    # print()
+    # print('dict:')
+    # input('break coco_evaluator')
+
+    return coco_evaluator, statistic
