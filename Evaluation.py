@@ -107,6 +107,21 @@ def instance_segmentation_api(img, masks, boxes, pred_cls, colours,
     else:
         len_mask = 1
 
+    j = 0
+    all_masks = np.zeros((1024,2048))
+    for i in range(len_mask):
+        temp_mask = masks[i]
+        import ipdb
+        ipdb.set_trace()
+        #temp_mask = temp_mask.numpy().transpose(1, 2, 0)
+        #temp_mask = temp_mask.astype(np.uint8)
+        temp_mask = temp_mask * (labels[i].cpu().numpy()*1000+j)
+        all_masks = all_masks + temp_mask
+        j = j + 1
+        
+    plt.imshow(all_masks)
+    mask_path = img_path[:-4]+'_mask.jpg'
+    plt.savefig(mask_path)
     for i in range(len_mask):
         box_h = (boxes[i][1][1] - boxes[i][0][1])
         box_w = (boxes[i][1][0] - boxes[i][0][0])
@@ -160,7 +175,7 @@ def main():
 
     
 
-    threshold_pred = 0.75 # ab welchem threshold sollen predictions angezeigt werden
+    threshold_pred = 0.1 # ab welchem threshold sollen predictions angezeigt werden
     resize_factor = [1]#,0.95,0.9,0.85,0.8,0.75,0.7,0.65,0.6,0.55,0.5,0.45,0.4,0.35,0.3,0.275,0.25,0.225,0.2,0.175,0.15,0.125,0.1,0.075,0.05,0.025]
     
     # ==================================
@@ -180,10 +195,10 @@ def main():
         model.to(device)
     
         name_file = 'model_BlumenkohlDataset_numTrainIm490_Ergebnis_mitFactor' + np.str(factor) 
-        if not os.path.exists(os.path.join("../results/Experiment1/" + name_file + "/resultImages/")):
-            os.makedirs(os.path.join("../results/Experiment1/" + name_file + "/resultImages/"))
+        if not os.path.exists(os.path.join("./results/Experiment1/" + name_file + "/resultImages/")):
+            os.makedirs(os.path.join("./results/Experiment1/" + name_file + "/resultImages/"))
         # load test images
-        dataset_test = CityscapeDataset('E:/Dataset_test/',"val", get_transform(train=False))
+        dataset_test = CityscapeDataset('E:/Dataset_test/',"train", get_transform(train=False))
         #dataset_test = lscTMP.LSCDatasetTotalMultiplePlant(path_data, get_transform(train=False), 5)
         #indices = torch.randperm(len(dataset_test)).tolist()
     
@@ -201,12 +216,12 @@ def main():
 
 
         image_idx = 1
-        datei = open("C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/results/Experiment1/" + name_file +'/Evaluierungsmatrix.txt','a')
+        datei = open("C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file +'/Evaluierungsmatrix.txt','a')
         for image_file in dataset_test:
             # print(image_file)
 
             #try:
-            img_path = "C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/results/Experiment1/" + name_file + "/resultImages/filename_" + str(image_idx) + ".jpg"
+            img_path = "C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file + "/resultImages/filename_" + str(image_idx) + ".jpg"
             print(img_path)
 
             # pick one image from the test set
