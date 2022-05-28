@@ -242,10 +242,11 @@ def main():
             colors = [cmap(j) for j in np.linspace(0, 1, 60)]
 
 
-            # print('predictions', prediction)
-            pred_score = list(prediction[0]['scores'].cpu().numpy()) # list
-            print('pred_score:', np.max(pred_score))
+            
             try:
+                # print('predictions', prediction)
+                pred_score = list(prediction[0]['scores'].cpu().numpy()) # list
+                print('pred_score:', np.max(pred_score))
                 pred_t = [pred_score.index(x) for x in pred_score if x>threshold_pred][-1]
     
                 labels = prediction[0]['labels']
