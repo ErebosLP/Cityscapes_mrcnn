@@ -25,6 +25,8 @@ from engine import evaluate
 import utils
 
 from sklearn.metrics import confusion_matrix
+
+from scipy.io import savemat
 #### ======= source links ========== ####
 # https://www.learnopencv.com/mask-r-cnn-instance-segmentation-with-pytorch/
 
@@ -111,17 +113,17 @@ def instance_segmentation_api(img, masks, boxes, pred_cls, colours,
     all_masks = np.zeros((1024,2048))
     for i in range(len_mask):
         temp_mask = masks[i]
-        import ipdb
-        ipdb.set_trace()
         #temp_mask = temp_mask.numpy().transpose(1, 2, 0)
         #temp_mask = temp_mask.astype(np.uint8)
         temp_mask = temp_mask * (labels[i].cpu().numpy()*1000+j)
         all_masks = all_masks + temp_mask
         j = j + 1
-        
-    plt.imshow(all_masks)
-    mask_path = img_path[:-4]+'_mask.jpg'
-    plt.savefig(mask_path)
+  
+    #p.savetxt(img_path[:-4]+'_mask.csv', all_masks, delimiter=",")
+    savemat(img_path[:-4]+'_mask.mat',{'m': all_masks})    
+    #plt.imshow(all_masks)
+    #mask_path = img_path[:-4]+'_mask.jpg'
+    #plt.savefig(mask_path)
     for i in range(len_mask):
         box_h = (boxes[i][1][1] - boxes[i][0][1])
         box_w = (boxes[i][1][0] - boxes[i][0][0])
@@ -168,14 +170,12 @@ def main():
     # ======= Parameter settings ======
     # our dataset has two classes only - background and person
     NUM_CLASSES = 11
-    numImages = 10
-    numValImages = math.floor(numImages*0.15)
-    numTestImages =  math.floor(numImages*0.15)
-    numTrainImages = numImages - 2 * numTestImages
+    
+   
 
     
 
-    threshold_pred = 0.1 # ab welchem threshold sollen predictions angezeigt werden
+    threshold_pred = 0.05 # ab welchem threshold sollen predictions angezeigt werden
     resize_factor = [1]#,0.95,0.9,0.85,0.8,0.75,0.7,0.65,0.6,0.55,0.5,0.45,0.4,0.35,0.3,0.275,0.25,0.225,0.2,0.175,0.15,0.125,0.1,0.075,0.05,0.025]
     
     # ==================================
@@ -184,17 +184,18 @@ def main():
         model = get_instance_segmentation_model(NUM_CLASSES)
         #checkpoint = torch.load('./../results/BlumenkohlDataset/model_BlumenkohlDataset_numTrainIm490_numValIm105HerunterskaliertUmFaktor'+ np.str(factor)  +'/checkpoint/' + name_file_folder2 + '.pth')
         #checkpoint = torch.load('C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/model/Cityscapes_model/model_Cityscapes_version1_numEpochs1.pth')
-        checkpoint = torch.load('C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Cityscapes/model_Cityscapes_version1_numEpochs1/checkpoint/max_valid_model.pth')
+        checkpoint = torch.load('C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/model/Cityscapes_model/model_Cityscapes_version1_numEpochs100.pth')
      
 
-        model.load_state_dict(checkpoint['model_state_dict'])
+        #model.load_state_dict(checkpoint['model_state_dict'])
+        model.load_state_dict(checkpoint)
         #model.load_state_dict(torch.load('./../results/BlumenkohlDataset/model_BlumenkohlDataset_numTrainIm490_numValIm105HerunterskaliertUmFaktor1/checkpoint/' + name_file_folder2 + '.pth')) #model_LSCDataset.pth'))
         model.eval()
 
         # move model to the right device
         model.to(device)
     
-        name_file = 'model_BlumenkohlDataset_numTrainIm490_Ergebnis_mitFactor' + np.str(factor) 
+        name_file = 'model_BlumenkohlDataset_numTrainIm490_Ergebnis_mitFactor' + str(factor) 
         if not os.path.exists(os.path.join("./results/Experiment1/" + name_file + "/resultImages/")):
             os.makedirs(os.path.join("./results/Experiment1/" + name_file + "/resultImages/"))
         # load test images
@@ -204,9 +205,9 @@ def main():
     
 
         #Evaluations Werte
-        data_loader_test = torch.utils.data.DataLoader(
-                dataset_test, batch_size=1, shuffle=False, num_workers=1,
-                collate_fn=utils.collate_fn)
+        #data_loader_test = torch.utils.data.DataLoader(
+        #        dataset_test, batch_size=1, shuffle=False, num_workers=1,
+        #        collate_fn=utils.collate_fn)
         #_, stat = evaluate(model, data_loader_test, device=device) 
         #input('s')
         #datei = open("../results/BlumenkohlDataset/" + name_file +'/Evaluierungsmatrix.txt','a')
@@ -215,17 +216,19 @@ def main():
         #-----------
 
 
-        image_idx = 1
-        datei = open("C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file +'/Evaluierungsmatrix.txt','a')
+
+        #datei = open("C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file +'/Evaluierungsmatrix.txt','a')
         for image_file in dataset_test:
             # print(image_file)
 
-            #try:
-            img_path = "C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file + "/resultImages/filename_" + str(image_idx) + ".jpg"
-            print(img_path)
-
+            
+                
+    
             # pick one image from the test set
             img, target = image_file
+            image_id = str(target['image_id'].numpy()[0])
+            img_path = "C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file + "/resultImages/filename_" + image_id + ".jpg"
+            print(img_path)
 
             # put the model in evaluation mode
             model.eval()
@@ -241,40 +244,40 @@ def main():
 
             # print('predictions', prediction)
             pred_score = list(prediction[0]['scores'].cpu().numpy()) # list
-            print('pred_score:', pred_score)
+            print('pred_score:', np.max(pred_score))
+            try:
+                pred_t = [pred_score.index(x) for x in pred_score if x>threshold_pred][-1]
+    
+                labels = prediction[0]['labels']
+                masks = (prediction[0]['masks']>0.2).squeeze().detach().cpu().numpy()
+                
+                
+                pred_class = [CLASS_NAMES[i] for i in list(prediction[0]['labels'].cpu().numpy())]
+    
+                pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(prediction[0]['boxes'].detach().cpu().numpy())]
+                if len(masks.shape) > 2:
+                    masks = masks[:pred_t+1]
+    
+                pred_boxes = pred_boxes[:pred_t+1]
+                pred_class = pred_class[:pred_t+1]
+                print('pred_class (>0.5%):', pred_class)
+    
+                detections_v2 = prediction[0]['boxes'][0:pred_t+1] # with prediction > 0.5
+    
+                unique_labels_v2 = detections_v2[:, -1].cpu().unique()
+                n_cls_preds_v2 = len(unique_labels_v2)
+    
+                bbox_colors = random.sample(colors, n_cls_preds_v2)
+    
+                # plot instance segmentation
+                instance_segmentation_api(img, masks, pred_boxes, pred_class, bbox_colors, CLASS_NAMES, labels, img_path, threshold=0.9, rect_th=2, text_size=0.4, text_th=1)
+            except:
+                pass
+            #konfusionsmatrix = evaluate_sgmentation(masks, target["masks"].numpy()) 
+            #datei.write(str(konfusionsmatrix))
+            #datei.write(str('\n'))
 
-            pred_t = [pred_score.index(x) for x in pred_score if x>threshold_pred][-1]
-
-            labels = prediction[0]['labels']
-            masks = (prediction[0]['masks']>0.2).squeeze().detach().cpu().numpy()
-            
-            
-            pred_class = [CLASS_NAMES[i] for i in list(prediction[0]['labels'].cpu().numpy())]
-
-            pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(prediction[0]['boxes'].detach().cpu().numpy())]
-            if len(masks.shape) > 2:
-                masks = masks[:pred_t+1]
-
-            pred_boxes = pred_boxes[:pred_t+1]
-            pred_class = pred_class[:pred_t+1]
-            print('pred_class (>0.5%):', pred_class)
-
-            detections_v2 = prediction[0]['boxes'][0:pred_t+1] # with prediction > 0.5
-
-            unique_labels_v2 = detections_v2[:, -1].cpu().unique()
-            n_cls_preds_v2 = len(unique_labels_v2)
-
-            bbox_colors = random.sample(colors, n_cls_preds_v2)
-
-            # plot instance segmentation
-            instance_segmentation_api(img, masks, pred_boxes, pred_class, bbox_colors, CLASS_NAMES, labels, img_path, threshold=0.9, rect_th=2, text_size=0.4, text_th=1)
-            #except:
-            #    pass
-            konfusionsmatrix = evaluate_sgmentation(masks, target["masks"].numpy()) 
-            datei.write(str(konfusionsmatrix))
-            datei.write(str('\n'))
-            image_idx = image_idx + 1
-        datei.close()
+        #datei.close()
       
 
 if __name__ == '__main__':
