@@ -218,14 +218,14 @@ def main():
 
 
         #datei = open("C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file +'/Evaluierungsmatrix.txt','a')
-        for image_file in dataset_test:
+        for i in range(len(dataset_test)):
             # print(image_file)
 
             
                 
     
             # pick one image from the test set
-            img, target = image_file
+            img, target = dataset_test[i]
             image_id = str(target['image_id'].numpy()[0])
             img_path = "C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file + "/resultImages/filename_" + image_id + ".jpg"
             print(img_path)
