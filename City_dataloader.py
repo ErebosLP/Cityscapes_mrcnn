@@ -31,7 +31,7 @@ class CityscapeDataset(object):
         self.transforms_in = transforms_in
    
     def __len__(self):
-       return 100 #len(self.data)
+       return 2 #len(self.data)
    
     def __getitem__(self, index):
 
