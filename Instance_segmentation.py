@@ -261,7 +261,7 @@ def main():
         num_classes = 11 # 35
         num_img_channels = 3
         # use LSC dataset and defined transformations
-        root = 'E:/Dataset_test/'
+        root = '../Mask_r_cnn/Dataset_test'
         dataset = CityscapeDataset(root,"train", get_transform(train=False))
         #dataset = torchvision.datasets.Cityscapes(root,split='train', mode='fine', target_type=['instance'], transform=None)
         #import ipdb
