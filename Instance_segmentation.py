@@ -261,7 +261,7 @@ def main():
         num_classes = 11 # 35
         num_img_channels = 3
         # use LSC dataset and defined transformations
-        root = './Dataset_test'
+        root = 'E:/Dataset_test/'
         dataset = CityscapeDataset(root,"train", get_transform(train=False))
         #dataset = torchvision.datasets.Cityscapes(root,split='train', mode='fine', target_type=['instance'], transform=None)
         #import ipdb
@@ -388,11 +388,19 @@ def main():
             
             ## combined plots in tensorboard
             #Box 
-            writer.add_scalars('AveragePrecision_Box_Cityscapes', {'eval_05_095':stat[0][0],'eval_05':stat[0][1],'eval_075': stat[0][2]}, epoch)
-            writer.add_scalars('AverageRecall_Box_Cityscapes', {'eval_areaAll_maxDets1':stat[0][6],'eval_areaAll_maxDets10':stat[0][7],'eval_areaAll_maxDets100':stat[0][8]}, epoch)
+            writer.add_scalars('AveragePrecision_Box_Cityscapes', {'eval_05_095':stat[0][0],
+                                  'eval_05':stat[0][1],
+                                  'eval_075': stat[0][2]}, epoch)
+            writer.add_scalars('AverageRecall_Box_Cityscapes', {'eval_areaAll_maxDets1':stat[0][6],
+                                  'eval_areaAll_maxDets10':stat[0][7],
+                                  'eval_areaAll_maxDets100':stat[0][8]}, epoch)
 	    #Segmentation
-            writer.add_scalars('AveragePrecision_Segmentation_Cityscapes', {'eval_05_095':stat[1][0],'eval_05':stat[1][1],'eval_075': stat[1][2]}, epoch)
-            writer.add_scalars('AverageRecall_Segmentation_Cityscapes', {'eval_areaAll_maxDets1':stat[1][6],'eval_areaAll_maxDets10':stat[1][7],'eval_areaAll_maxDets100':stat[1][8]}, epoch)
+  	    writer.add_scalars('AveragePrecision_Segmentation_Cityscapes', {'eval_05_095':stat[1][0],
+                                  'eval_05':stat[1][1],
+                                  'eval_075': stat[1][2]}, epoch)
+            writer.add_scalars('AverageRecall_Segmentation_Cityscapes', {'eval_areaAll_maxDets1':stat[1][6],
+                                  'eval_areaAll_maxDets10':stat[1][7],
+                                  'eval_areaAll_maxDets100':stat[1][8]}, epoch)
             
             # ## === compute precision recall curve ===
             # images, targets = data_loader_test
@@ -407,6 +415,98 @@ def main():
         ##### save model #####
         torch.save(model.state_dict(), './model/Cityscapes_model/'+ model_name + '.pth')
 
+
+
+
+
+
+        ## --------------------------------------------------------------------------------
+        # pick one image from the test set
+        print('=========')
+        print()
+        #CLASS_NAMES = ['unlabeled', 'ego vehicle','rectification border' ,'out of roi','static','dynamic', 'ground', 'road','sidewalk','parking','rail track','building','wall','fence','guard rail','bridge',  'tunnel',  'pole',  'polegroup',  'traffic light',  'traffic sign',  'vegetation',  'terrain',  'sky',  'person',  'rider',  'car',  'truck',  'bus',  'caravan',  'trailer',  'train',  'motorcycle',  'bicycle',  'license plate']
+        CLASS_NAMES = ['unlabeled', 'person',  'rider',  'car',  'truck',  'bus',  'caravan',  'trailer',  'train',  'motorcycle',  'bicycle']            
+        # put the model in evaluation mode
+        model.eval()
+        
+        ind = 1
+
+        for image_test, _ in dataset_test:# data_loader:
+
+            # image = image_test.numpy().transpose(1,2,0)
+            # print('image.shape', image.shape)
+
+            with torch.no_grad():
+                prediction = model([image_test.to(device)])
+
+            #print('predictions', prediction) #liste
+            #input('stop')
+            pred_score = list(prediction[0]['scores'].cpu().numpy()) # list
+            pred_t = [pred_score.index(x) for x in pred_score if x>=0.5][-1] 
+            #print('pred_t:', np.max(pred_score))
+            # print('predictions', pred_score[0:pred_t])
+
+            masks = (prediction[0]['masks']>0.1).squeeze().detach().cpu().numpy()
+
+            pred_class = [CLASS_NAMES[i] for i in list(prediction[0]['labels'].cpu().numpy())]
+
+            pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(prediction[0]['boxes'].detach().cpu().numpy())]
+            if len(masks.shape) > 2:
+                masks = masks[:pred_t+1]
+
+            pred_boxes = pred_boxes[:pred_t+1]
+            pred_class = pred_class[:pred_t+1]
+
+            detections_v2 = prediction[0]['boxes'][0:pred_t+1]
+            
+            # define colors
+            cmap = plt.get_cmap('tab20b')
+            colors = [cmap(j) for j in np.linspace(0, 1, 60)]
+
+            unique_labels_v2 = detections_v2[:, -1].cpu().unique()
+            n_cls_preds_v2 = len(unique_labels_v2)
+            bbox_colors = random.sample(colors, n_cls_preds_v2)
+
+            labels = prediction[0]['labels']
+
+            if not os.path.exists(os.path.join("../results/Cityscapes/" + model_name + "/resultImages/")):
+                os.makedirs(os.path.join("../results/Cityscapes/" + model_name + "/resultImages/"))
+
+            img_path = "../results/Cityscapes/" + model_name + "/resultImages/_training" + str(ind) + ".jpg"
+
+            instance_segmentation_api(image_test, masks, pred_boxes, pred_class, bbox_colors, CLASS_NAMES, labels, img_path, threshold=0.9, rect_th=2, text_size=0.4, text_th=1)
+
+            ind += 1
+
+
+
+
+        # input('stop after trying to plot result')
+        img, _ = dataset[0] # dataset_test[0]
+
+        # put the model in evaluation mode
+        # model.eval()
+        # with torch.no_grad():
+        #     prediction = model([img.to(device)])
+
+        # print('prediction:', prediction)
+
+        try:
+            # # save preediciton dictonary in file
+            # np.save('./../results/LSCDataset/dict_prediction_LSC.npy', prediction)
+            # convert image, which has been rescaled to 0-1 and had the channels flipped. now: [C, H, W] format
+            im = Image.fromarray(img.mul(255).permute(1, 2, 0).byte().numpy())
+            mask1 = Image.fromarray(prediction[0]['masks'][0, 0].mul(255).byte().cpu().numpy())
+            boxes = Image.fromarray(prediction[0]['boxes'][0, 0].mul(255).byte().cpu().numpy())
+            fig, ax = plt.subplots(1, figsize=(10, 7))
+
+            rgb_mask = random_colour_masks(temp_mask, colours[i])
+
+            im.show()
+            mask1.show()
+            # mask2 = Image.fromarray(prediction[0]['masks'][1, 0].mul(255).byte().cpu().numpy())
+        except:
+            pass
 
 
 if __name__ == '__main__':

@@ -146,7 +146,7 @@ def instance_segmentation_api(img, masks, boxes, pred_cls, colours,
         bbox = patches.Rectangle((boxes[i][0][0], boxes[i][0][1]), box_w, box_h,
                 linewidth=2, edgecolor=colours[i][0:3], facecolor='none')
         ax2.add_patch(bbox)
-        plt.text(boxes[i][0][0], boxes[i][0][1], s=CLASS_NAMES[labels[i]],
+        plt.text(boxes[i][0][0], boxes[i][0][1],s=CLASS_NAMES[labels[i]],
                     color='white', verticalalignment='top',
                     bbox={'color': colours[i][0:3], 'pad': 0})
 
@@ -175,34 +175,36 @@ def main():
 
     
 
-    threshold_pred = 0.3 # ab welchem threshold sollen predictions angezeigt werden
+    threshold_pred = 0.71 # ab welchem threshold sollen predictions angezeigt werden
     resize_factor = [1]#,0.95,0.9,0.85,0.8,0.75,0.7,0.65,0.6,0.55,0.5,0.45,0.4,0.35,0.3,0.275,0.25,0.225,0.2,0.175,0.15,0.125,0.1,0.075,0.05,0.025]
     
     # ==================================
     for factor in resize_factor:
         # load model
+        print('1')
         model = get_instance_segmentation_model(NUM_CLASSES)
         #checkpoint = torch.load('./../results/BlumenkohlDataset/model_BlumenkohlDataset_numTrainIm490_numValIm105HerunterskaliertUmFaktor'+ np.str(factor)  +'/checkpoint/' + name_file_folder2 + '.pth')
         #checkpoint = torch.load('C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/model/Cityscapes_model/model_Cityscapes_version1_numEpochs1.pth')
-        checkpoint = torch.load('C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/model/Cityscapes_model/model_Cityscapes_version1_numEpochs100.pth')
-     
+        checkpoint = torch.load('C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/model/Cityscapes_model/model_Cityscapes_version3_numEpochs50.pth')
+        print('2')
 
         #model.load_state_dict(checkpoint['model_state_dict'])
         model.load_state_dict(checkpoint)
         #model.load_state_dict(torch.load('./../results/BlumenkohlDataset/model_BlumenkohlDataset_numTrainIm490_numValIm105HerunterskaliertUmFaktor1/checkpoint/' + name_file_folder2 + '.pth')) #model_LSCDataset.pth'))
         model.eval()
-
+        print('3')
         # move model to the right device
         model.to(device)
-    
-        name_file = 'model_BlumenkohlDataset_numTrainIm490_Ergebnis_mitFactor' + str(factor) 
+        print('4')
+        name_file = 'model_BlumenkohlDataset_numTrainIm490_Ergebnis_mitFactor' + str(factor) + 'versuch3_50epochs'
         if not os.path.exists(os.path.join("./results/Experiment1/" + name_file + "/resultImages/")):
             os.makedirs(os.path.join("./results/Experiment1/" + name_file + "/resultImages/"))
         # load test images
+        print('5')
         dataset_test = CityscapeDataset('E:/Dataset_test/',"train", get_transform(train=False))
         #dataset_test = lscTMP.LSCDatasetTotalMultiplePlant(path_data, get_transform(train=False), 5)
         #indices = torch.randperm(len(dataset_test)).tolist()
-    
+        print('6')
 
         #Evaluations Werte
         #data_loader_test = torch.utils.data.DataLoader(
@@ -217,68 +219,69 @@ def main():
 
 
 
-        #datei = open("C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file +'/Evaluierungsmatrix.txt','a')
+        datei = open("C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file +'/bboxes.txt','a')
         for i in range(len(dataset_test)):
             # print(image_file)
-
+            print('7')
             
                 
     
             # pick one image from the test set
             img, target = dataset_test[i]
+            print('8')
             image_id = str(target['image_id'].numpy()[0])
             img_path = "C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file + "/resultImages/filename_" + image_id + ".jpg"
             print(img_path)
 
             # put the model in evaluation mode
-            model.eval()
+            #model.eval()
             with torch.no_grad():
                 prediction = model([img.to(device)])
-
+            
             CLASS_NAMES = ['unlabeled', 'person',  'rider',  'car',  'truck',  'bus',  'caravan',  'trailer',  'train',  'motorcycle',  'bicycle']  
 
             # Get bounding-box colors
             cmap = plt.get_cmap('tab20b')
-            colors = [cmap(j) for j in np.linspace(0, 1, 60)]
+            colors = [cmap(j) for j in np.linspace(0, 1, 100)]
 
 
+            # print('predictions', prediction)
+            pred_score = list(prediction[0]['scores'].cpu().numpy()) # list
+            print('pred_score:', np.max(pred_score))
+            #try:
+            pred_t = [pred_score.index(x) for x in pred_score if x>threshold_pred][-1]
+
+            labels = prediction[0]['labels']
+            masks = ( prediction[0]['masks']>0.5).squeeze().detach().cpu().numpy()
             
-            try:
-                # print('predictions', prediction)
-                pred_score = list(prediction[0]['scores'].cpu().numpy()) # list
-                print('pred_score:', np.max(pred_score))
-                pred_t = [pred_score.index(x) for x in pred_score if x>threshold_pred][-1]
-    
-                labels = prediction[0]['labels']
-                masks = (prediction[0]['masks']>0.2).squeeze().detach().cpu().numpy()
-                
-                
-                pred_class = [CLASS_NAMES[i] for i in list(prediction[0]['labels'].cpu().numpy())]
-    
-                pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(prediction[0]['boxes'].detach().cpu().numpy())]
-                if len(masks.shape) > 2:
-                    masks = masks[:pred_t+1]
-    
-                pred_boxes = pred_boxes[:pred_t+1]
-                pred_class = pred_class[:pred_t+1]
-                print('pred_class (>0.5%):', pred_class)
-    
-                detections_v2 = prediction[0]['boxes'][0:pred_t+1] # with prediction > 0.5
-    
-                unique_labels_v2 = detections_v2[:, -1].cpu().unique()
-                n_cls_preds_v2 = len(unique_labels_v2)
-    
-                bbox_colors = random.sample(colors, n_cls_preds_v2)
-    
-                # plot instance segmentation
-                instance_segmentation_api(img, masks, pred_boxes, pred_class, bbox_colors, CLASS_NAMES, labels, img_path, threshold=0.9, rect_th=2, text_size=0.4, text_th=1)
-            except:
-                pass
-            #konfusionsmatrix = evaluate_sgmentation(masks, target["masks"].numpy()) 
-            #datei.write(str(konfusionsmatrix))
-            #datei.write(str('\n'))
+            
+            pred_class = [CLASS_NAMES[i] for i in list(prediction[0]['labels'].cpu().numpy())]
 
-        #datei.close()
+            pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(prediction[0]['boxes'].detach().cpu().numpy())]
+            if len(masks.shape) > 2:
+                masks = masks[:pred_t+1]
+
+            pred_boxes = pred_boxes[:pred_t+1]
+            pred_class = pred_class[:pred_t+1]
+            print('pred_class (>'+ str(threshold_pred*100) +'%):', pred_class)
+
+            detections_v2 = prediction[0]['boxes'][0:pred_t+1] # with prediction > 0.5
+
+            unique_labels_v2 = detections_v2[:, -1].cpu().unique()
+            n_cls_preds_v2 = len(unique_labels_v2)
+            #import ipdb
+            #ipdb.set_trace()
+            bbox_colors = random.sample(colors, n_cls_preds_v2)
+
+            # plot instance segmentation
+            instance_segmentation_api(img, masks, pred_boxes, pred_class, bbox_colors, CLASS_NAMES, labels, img_path, threshold=0.9, rect_th=2, text_size=0.4, text_th=1)
+            #except:
+            #    pass
+            #konfusionsmatrix = evaluate_sgmentation(masks, target["masks"].numpy()) 
+            datei.write(str(pred_boxes))
+            datei.write(str('\n'))
+
+        datei.close()
       
 
 if __name__ == '__main__':

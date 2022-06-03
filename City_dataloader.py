@@ -21,7 +21,7 @@ class CityscapeDataset(object):
     load_mask()
     '''
 
-    def __init__(self,root ,  subset, transforms_in=None):
+    def __init__(self,root ,  subset, transforms_in=None,as_tensor = True):
         
         self.subset = subset
         self.root = root
@@ -29,6 +29,7 @@ class CityscapeDataset(object):
         self.img_paths = glob.glob(root + 'leftImg8bit/' + subset + '/*/*_leftImg8bit.png')
         self.mask_paths = glob.glob(root + 'gtFine/' + subset + '/*/*_gtFine_instanceIds.png')
         self.transforms_in = transforms_in
+        self.as_tensor = as_tensor
    
     def __len__(self):
        return 2 #len(self.data)
@@ -53,18 +54,19 @@ class CityscapeDataset(object):
         for i in obj_ids:
             if i > 1000:
                 maske = np.array(image_mask) == i
-                masks.append(maske)
+                #masks.append(maske)
                 pos = np.where(maske)
                 xmin = np.min(pos[1])
                 xmax = np.max(pos[1])
                 ymin = np.min(pos[0])
                 ymax = np.max(pos[0])
+                
                 if (xmax - xmin) * (ymax -ymin) > 0:
                     
                     boxes[j,:] = [xmin, ymin, xmax, ymax]
                     class_id = int(str(i)[:2])-23
                     labels[j] = class_id
-                    masks.append(maske)
+                    masks.append(maske) #* class_id)
                     j = j + 1
                 else:
                     labels = labels[:-1]
@@ -83,11 +85,11 @@ class CityscapeDataset(object):
         
         
         # target values to Tensor
-        labels = torch.as_tensor(labels, dtype=torch.int64)
-        masks = torch.as_tensor(masks, dtype=torch.uint8)
-        #masks = torch.unsqueeze(masks, dim=3)
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)   
-        area = torch.as_tensor(area, dtype=torch.float32)
+        if self.as_tensor:
+            labels = torch.as_tensor(labels, dtype=torch.int64)
+            masks = torch.as_tensor(masks, dtype=torch.uint8)  #load if used for training
+            boxes = torch.as_tensor(boxes, dtype=torch.float32)   
+            area = torch.as_tensor(area, dtype=torch.float32)
         
         # is Crowd füllen
         iscrowd = torch.zeros((len(labels),), dtype=torch.int64)

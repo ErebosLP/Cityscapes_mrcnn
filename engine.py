@@ -83,7 +83,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
         metric_logger.update(loss=losses_reduced, **loss_dict_reduced)
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
 
-    return losses # todo. das habe ich hinzugefügt für tensorboard
+    return losses #  das habe ich hinzugefügt für tensorboard
 
 
 def _get_iou_types(model):
@@ -100,6 +100,7 @@ def _get_iou_types(model):
 
 @torch.no_grad()
 def evaluate(model, data_loader, device):
+    
     n_threads = torch.get_num_threads()
     # FIXME remove this and make paste_masks_in_image run on the GPU
     torch.set_num_threads(1)
@@ -109,7 +110,7 @@ def evaluate(model, data_loader, device):
     header = 'Test:'
 
     # print('engine evaluate() test 1')
-    
+
     coco = get_coco_api_from_dataset(data_loader.dataset)
     iou_types = _get_iou_types(model)
     coco_evaluator = CocoEvaluator(coco, iou_types)

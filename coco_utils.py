@@ -1,6 +1,7 @@
 import copy
 import os
 from PIL import Image
+import numpy as np
 
 import torch
 import torch.utils.data
@@ -164,13 +165,9 @@ def convert_to_coco_api(ds):
         labels = targets['labels'].tolist()
         areas = targets['area'].tolist()
         iscrowd = targets['iscrowd'].tolist()
-
         if 'masks' in targets:
             masks = targets['masks']
             # make masks Fortran contiguous for coco_mask
-            ################################################################################################
-
-            ################################################################################################
             masks = masks.permute(0, 2, 1).contiguous().permute(0, 2, 1)
         if 'keypoints' in targets:
             keypoints = targets['keypoints']
