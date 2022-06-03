@@ -32,7 +32,7 @@ class CityscapeDataset(object):
         self.as_tensor = as_tensor
    
     def __len__(self):
-       return 2 #len(self.data)
+       return len(self.img_paths)
    
     def __getitem__(self, index):
 
