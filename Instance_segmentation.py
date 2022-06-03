@@ -218,18 +218,18 @@ def main():
     numImages_total = 1
     numValImages = 1
     numTrainImages = 1
-    numEpochs = 20
+    numEpochs = 1
     learningRate = base_lr
 
 
     print('num images Train/Test:', numTrainImages, '/', numValImages)
 
     # model name   
-    model_name = 'model_Cityscapes_version1_numEpochs' + str(numEpochs) 
+    model_name = 'model_Cityscapes_version3_numEpochs' + str(numEpochs) 
     print('model name: ', model_name)
     
     # see if path exist otherwise make new directory
-    out_dir = os.path.join('./../results/Cityscapes/', model_name )
+    out_dir = os.path.join('./results/Cityscapes/', model_name )
     print('out_dir: ', out_dir)
     if not os.path.exists(os.path.join(out_dir,'checkpoint')):
         os.makedirs(os.path.join(out_dir,'checkpoint'))
@@ -267,7 +267,7 @@ def main():
         #import ipdb
         #ipdb.set_trace()
         #dataset_test = torchvision.datasets.Cityscapes(root,split='test', mode='fine', target_type=['instance'],transform=get_transform(train=False))
-        dataset_test = CityscapeDataset(root,"val", get_transform(train=False))
+        dataset_test = CityscapeDataset(root,"train", get_transform(train=False))
     
 
         # dataset_test = torch.utils.data.Subset(dataset_test, indices[0:1]) #indices[-50:])
@@ -353,7 +353,7 @@ def main():
             # train for one epoch, printing every 10 iterations
             print('start train one epoch')
             losses_OE = train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
-            writer.add_scalar('Loss_Blumenkohl/train', losses_OE, epoch)
+            writer.add_scalar('Loss_Cityscapes/train', losses_OE, epoch)
 
             # update the learning rate
             if epoch % 15 == 0:
@@ -377,23 +377,30 @@ def main():
  
             print('start evaluation')
             # evaluate on the test dataset
-            #_, stat = evaluate(model, data_loader_test, device=device) 
+            _, stat = evaluate(model, data_loader_test, device=device) 
             
             ## individual plots in tensorboard
-            # writer.add_scalar('AveragePrecision_LSC/eval_05_095', stat[0], epoch)
-            # writer.add_scalar('AveragePrecision_LSC/eval_05', stat[1], epoch)
-            # writer.add_scalar('AveragePrecision_LSC/eval_075', stat[2], epoch)
-            # writer.add_scalar('AverageRecall_LSC/eval_areaAll_maxDets1', stat[6], epoch)
-            # writer.add_scalar('AverageRecall_LSC/eval_areaAll_maxDets10', stat[7], epoch)
+            # writer.add_scalar('AveragePrecision_Box_Cityscapes/eval_05_095', stat[0], epoch)
+            # writer.add_scalar('AveragePrecision_Box_Cityscapes/eval_05', stat[1], epoch)
+            # writer.add_scalar('AveragePrecision_Box_Cityscapes/eval_075', stat[2], epoch)
+            # writer.add_scalar('AverageRecall_Box_Cityscapes/eval_areaAll_maxDets1', stat[6], epoch)
+            # writer.add_scalar('AverageRecall_Box_Cityscapes/eval_areaAll_maxDets10', stat[7], epoch)
             
             ## combined plots in tensorboard
-            
-            #writer.add_scalars('AveragePrecision_LSC', {'eval_05_095':stat[0][0],
-            #                      'eval_05':stat[0][1],
-            #                      'eval_075': stat[0][2]}, epoch)
-            #writer.add_scalars('AverageRecall_LSC', {'eval_areaAll_maxDets1':stat[0][6],
-            #                      'eval_areaAll_maxDets10':stat[0][7],
-            #                      'eval_areaAll_maxDets100':stat[0][8]}, epoch)
+            #Box 
+            writer.add_scalars('AveragePrecision_Box_Cityscapes', {'eval_05_095':stat[0][0],
+                                  'eval_05':stat[0][1],
+                                  'eval_075': stat[0][2]}, epoch)
+            writer.add_scalars('AverageRecall_Box_Cityscapes', {'eval_areaAll_maxDets1':stat[0][6],
+                                  'eval_areaAll_maxDets10':stat[0][7],
+                                  'eval_areaAll_maxDets100':stat[0][8]}, epoch)
+	    #Segmentation
+  	    writer.add_scalars('AveragePrecision_Segmentation_Cityscapes', {'eval_05_095':stat[1][0],
+                                  'eval_05':stat[1][1],
+                                  'eval_075': stat[1][2]}, epoch)
+            writer.add_scalars('AverageRecall_Segmentation_Cityscapes', {'eval_areaAll_maxDets1':stat[1][6],
+                                  'eval_areaAll_maxDets10':stat[1][7],
+                                  'eval_areaAll_maxDets100':stat[1][8]}, epoch)
             
             # ## === compute precision recall curve ===
             # images, targets = data_loader_test
@@ -406,7 +413,7 @@ def main():
 
 
         ##### save model #####
-        torch.save(model.state_dict(), './../model/Cityscapes_model/'+ model_name + '.pth')
+        torch.save(model.state_dict(), './model/Cityscapes_model/'+ model_name + '.pth')
 
 
 
