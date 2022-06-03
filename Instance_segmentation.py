@@ -388,19 +388,11 @@ def main():
             
             ## combined plots in tensorboard
             #Box 
-            writer.add_scalars('AveragePrecision_Box_Cityscapes', {'eval_05_095':stat[0][0],
-                                  'eval_05':stat[0][1],
-                                  'eval_075': stat[0][2]}, epoch)
-            writer.add_scalars('AverageRecall_Box_Cityscapes', {'eval_areaAll_maxDets1':stat[0][6],
-                                  'eval_areaAll_maxDets10':stat[0][7],
-                                  'eval_areaAll_maxDets100':stat[0][8]}, epoch)
+            writer.add_scalars('AveragePrecision_Box_Cityscapes', {'eval_05_095':stat[0][0],'eval_05':stat[0][1],'eval_075': stat[0][2]}, epoch)
+            writer.add_scalars('AverageRecall_Box_Cityscapes', {'eval_areaAll_maxDets1':stat[0][6],'eval_areaAll_maxDets10':stat[0][7],'eval_areaAll_maxDets100':stat[0][8]}, epoch)
 	    #Segmentation
-  	    writer.add_scalars('AveragePrecision_Segmentation_Cityscapes', {'eval_05_095':stat[1][0],
-                                  'eval_05':stat[1][1],
-                                  'eval_075': stat[1][2]}, epoch)
-            writer.add_scalars('AverageRecall_Segmentation_Cityscapes', {'eval_areaAll_maxDets1':stat[1][6],
-                                  'eval_areaAll_maxDets10':stat[1][7],
-                                  'eval_areaAll_maxDets100':stat[1][8]}, epoch)
+            writer.add_scalars('AveragePrecision_Segmentation_Cityscapes', {'eval_05_095':stat[1][0],'eval_05':stat[1][1],'eval_075': stat[1][2]}, epoch)
+            writer.add_scalars('AverageRecall_Segmentation_Cityscapes', {'eval_areaAll_maxDets1':stat[1][6],'eval_areaAll_maxDets10':stat[1][7],'eval_areaAll_maxDets100':stat[1][8]}, epoch)
             
             # ## === compute precision recall curve ===
             # images, targets = data_loader_test
