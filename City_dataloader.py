@@ -28,7 +28,7 @@ class CityscapeDataset(object):
         #self.data = torchvision.datasets.Cityscapes(root,split=subset, mode='fine', target_type=['instance'], transform=None)
         self.img_paths = glob.glob(root + 'leftImg8bit/' + subset + '/*/*_leftImg8bit.png')
         self.img_paths.sort()
-        self.mask_paths = glob.glob(root + 'gtFine/' + subset + '/*/*_gtFine_instanceIds.png')
+        self.mask_paths = glob.glob(root + 'gtfine/' + subset + '/*/*_gtFine_instanceIds.png')
         self.mask_paths.sort()
         self.transforms_in = transforms_in
         self.as_tensor = as_tensor
