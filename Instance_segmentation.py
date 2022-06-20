@@ -6,6 +6,8 @@ import numpy as np
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
+import ipdb
+
 
 # tensorboard
 from torch.utils.tensorboard import SummaryWriter
@@ -31,6 +33,10 @@ import random
 
 from City_dataloader import CityscapeDataset
 
+from sklearn.metrics import jaccard_score as jsc
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
+import time
+from pprint import pprint
 
 #### ======= source links ========== ####
 # https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html#wrapping-up
@@ -213,16 +219,10 @@ def instance_segmentation_api(img, masks, boxes, pred_cls, colours,
 
 def main():
     ## setup --------------------------------------------------------------------------
-    base_lr = 30e-5
-
-    numImages_total = 1
-    numValImages = 1
-    numTrainImages = 1
-    numEpochs = 1
+    base_lr = 0.000001
+    numEpochs = 100
     learningRate = base_lr
 
-
-    print('num images Train/Test:', numTrainImages, '/', numValImages)
 
     # model name   
     model_name = 'model_Cityscapes_version3_numEpochs' + str(numEpochs) 
@@ -234,7 +234,7 @@ def main():
     if not os.path.exists(os.path.join(out_dir,'checkpoint')):
         os.makedirs(os.path.join(out_dir,'checkpoint'))
 
-    if os.path.exists(os.path.join(out_dir,'checkpoint', 'max_valid_model.pth')):
+    if False: #os.path.exists(os.path.join(out_dir,'checkpoint', 'max_valid_model.pth')):
         # if pretrained_model is not None:
         initial_checkpoint = os.path.join(out_dir, 'checkpoint', 'max_valid_model.pth')
     else:
@@ -261,13 +261,13 @@ def main():
         num_classes = 11 # 35
         num_img_channels = 3
         # use LSC dataset and defined transformations
-        root = '../Mask_r_cnn/Dataset_test'
-        dataset = CityscapeDataset(root,"train", get_transform(train=False))
+        root = '/export/data/jhembach/cityscapes/' #E:/Datasets/'
+        dataset = CityscapeDataset(root,"train", get_transform(train=True))
         #dataset = torchvision.datasets.Cityscapes(root,split='train', mode='fine', target_type=['instance'], transform=None)
         #import ipdb
         #ipdb.set_trace()
         #dataset_test = torchvision.datasets.Cityscapes(root,split='test', mode='fine', target_type=['instance'],transform=get_transform(train=False))
-        dataset_test = CityscapeDataset(root,"train", get_transform(train=False))
+        dataset_test = CityscapeDataset(root,"val", get_transform(train=False))
     
 
         # dataset_test = torch.utils.data.Subset(dataset_test, indices[0:1]) #indices[-50:])
@@ -318,25 +318,24 @@ def main():
         model.to(device)
 
         # construct an optimizer
-        if initial_checkpoint == None:
-            params = [p for p in model.parameters() if p.requires_grad]
-            optimizer = torch.optim.SGD(params, lr=learningRate,
-                                        momentum=0.9, weight_decay=0.0005)
+        #if initial_checkpoint == None:
+        params = [p for p in model.parameters() if p.requires_grad]
+        optimizer = torch.optim.Adam(params, lr=learningRate, weight_decay=0.0005)
             # and a learning rate scheduler
             # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
             #                                             step_size=2,
             #                                             gamma=0.1)
-            start_epoch = 0
-        else:
-            params = [p for p in model.parameters() if p.requires_grad]
-            checkpoint_optim = torch.load(initial_checkpoint)
+        start_epoch = 0
+        # else:
+        #     params = [p for p in model.parameters() if p.requires_grad]
+        #     checkpoint_optim = torch.load(initial_checkpoint)
 
-            optimizer = torch.optim.SGD(params, lr=learningRate,
-                                 momentum=0.9, weight_decay=0.0005)
+        #     optimizer = torch.optim.SGD(params, lr=learningRate,
+        #                          momentum=0.9, weight_decay=0.0005)
 
-            optimizer.load_state_dict(checkpoint_optim['optimizer_state_dict'])
-            start_epoch = checkpoint_optim['epoch']
-            # loss = checkpoint['loss']
+        #     optimizer.load_state_dict(checkpoint_optim['optimizer_state_dict'])
+        #     start_epoch = checkpoint_optim['epoch']
+        #     # loss = checkpoint['loss']
 
 
 
@@ -376,129 +375,121 @@ def main():
 
  
             print('start evaluation')
+            n_threads = torch.get_num_threads()
+            torch.set_num_threads(1)
+            cpu_device = torch.device("cpu")
+            model.eval()
+            start_time = time.time()
+            threshold_pred = 0.5
             # evaluate on the test dataset
-            _, stat = evaluate(model, data_loader_test, device=device) 
+            #_, stat = evaluate(model, data_loader_test, device=device) 
+
+            meanAp = MeanAveragePrecision(class_metrics = True)
+            IoU = np.zeros((10,))
+            IoU_count = np.zeros((10,))
+
+            num_imgs=len(dataset_test)
+            for i in range(num_imgs):
+                img, target = dataset[i]
+                with torch.no_grad():
+                    prediction = model([img.to(device)])
+                    
+                pred_score = list(prediction[0]['scores'].cpu()) # list  
+                try:
+                    pred_t = [pred_score.index(x) for x in pred_score if x>threshold_pred][-1]
+                    
+                    pred_all_masks = np.zeros((1024,2048))
+                    pred_masks = ( prediction[0]['masks']>0.5).squeeze().detach().cpu().numpy()
+                    pred_masks = pred_masks[0:pred_t+1]
+                    for j in range(len(pred_masks)):
+                        temp_mask = pred_masks[j]
+                        temp_mask = temp_mask * (prediction[0]['labels'][j].cpu().numpy())
+                        pred_all_masks = pred_all_masks + temp_mask
             
-            ## individual plots in tensorboard
-            # writer.add_scalar('AveragePrecision_Box_Cityscapes/eval_05_095', stat[0], epoch)
-            # writer.add_scalar('AveragePrecision_Box_Cityscapes/eval_05', stat[1], epoch)
-            # writer.add_scalar('AveragePrecision_Box_Cityscapes/eval_075', stat[2], epoch)
-            # writer.add_scalar('AverageRecall_Box_Cityscapes/eval_areaAll_maxDets1', stat[6], epoch)
-            # writer.add_scalar('AverageRecall_Box_Cityscapes/eval_areaAll_maxDets10', stat[7], epoch)
+    
+                    target_all_masks = np.zeros((1024,2048))
+                    target_masks = ( target['masks']).numpy()
+                    for j in range(len(target_masks)):
+                        temp_mask = target_masks[j]
+                        temp_mask = temp_mask * (target['labels'][j].cpu().numpy())
+                        target_all_masks = target_all_masks + temp_mask
+            
+                    #ipdb.set_trace()
+                    temp_IoU =jsc(target_all_masks.reshape(-1),pred_all_masks.reshape(-1), average=None,labels=np.arange(10),zero_division=0.0)
+                    IoU += temp_IoU
+                    IoU_count += temp_IoU>0
+                except:
+                    pass
+                
+                pred_box = [dict(boxes = prediction[0]['boxes'].cpu(), labels = prediction[0]['labels'].cpu(),scores = prediction[0]['scores'].cpu())]
+                target_box = [dict(boxes = target['boxes'],labels = target['labels'])]
+                
+                meanAp.update(pred_box, target_box)
+                if i%10 == 0:
+                    print('Epoch [',epoch,'] ',i,'/',num_imgs,' | ',meanAp.compute())
+                    IoU_temp = IoU[IoU_count>0]/IoU_count[IoU_count>0]
+                    print('Epoch [',epoch,'] ',i,'/',num_imgs,' | mIoU=', IoU_temp)
+                    print('approx_time:', (np.round(((time.time() - start_time)/(i+1)*(num_imgs-i))*100)/100))
+                    
+
+            Ap = meanAp.compute()
+            IoU_count[IoU_count == 0]=1
+            IoU = IoU/IoU_count
+            CLASS_NAMES = ['unlabeled', 'person',  'rider',  'car',  'truck',  'bus',  'caravan',  'trailer',  'train',  'motorcycle',  'bicycle']
+            #ipdb.set_trace()
+            writer.add_scalars('AveragePrecision_Box_Cityscapes',  {'eval_05_095':Ap['map'],'eval_05':Ap['map_50'],'eval_075': Ap['map_75']}, epoch)
+            writer.add_scalars('AveragePrecision_Box_Cityscapes',  {'eval_small':Ap['map_small'],'eval_medium':Ap['map_medium'],'eval_large': Ap['map_large']}, epoch)
+            
+            writer.add_scalars('AverageRecall_Box_Cityscapes',  {'eval_maxDet_1':Ap['mar_1'],'eval_maxDet_10':Ap['mar_10'],'eval_maxDet_100': Ap['mar_100']}, epoch)
+            writer.add_scalars('AverageRecall_Box_Cityscapes',  {'eval_small':Ap['mar_small'],'eval_medium':Ap['mar_medium'],'eval_large': Ap['mar_large']}, epoch)
+            try:
+                writer.add_scalars('AveragePrecision_Box_Cityscapes_classes', {CLASS_NAMES[1]:Ap['map_per_class'][0],CLASS_NAMES[2]:Ap['map_per_class'][1],
+                                                                            CLASS_NAMES[3]:Ap['map_per_class'][2],CLASS_NAMES[4]:Ap['map_per_class'][3],
+                                                                            CLASS_NAMES[5]:Ap['map_per_class'][4],CLASS_NAMES[6]:Ap['map_per_class'][5],
+                                                                            CLASS_NAMES[7]:Ap['map_per_class'][6],CLASS_NAMES[8]:Ap['map_per_class'][7],
+                                                                            CLASS_NAMES[9]:Ap['map_per_class'][8],CLASS_NAMES[10]:Ap['map_per_class'][9]})
+                writer.add_scalars('AverageRecall_Box_Cityscapes_classes', {CLASS_NAMES[1]:Ap['mar_100_per_class'][0],CLASS_NAMES[2]:Ap['mar_100_per_class'][1],
+                                                                            CLASS_NAMES[3]:Ap['mar_100_per_class'][2],CLASS_NAMES[4]:Ap['mar_100_per_class'][3],
+                                                                            CLASS_NAMES[5]:Ap['mar_100_per_class'][4],CLASS_NAMES[6]:Ap['mar_100_per_class'][5],
+                                                                            CLASS_NAMES[7]:Ap['mar_100_per_class'][6],CLASS_NAMES[8]:Ap['mar_100_per_class'][7],
+                                                                            CLASS_NAMES[9]:Ap['mar_100_per_class'][8],CLASS_NAMES[10]:Ap['mar_100_per_class'][9]})
+            except:
+                pass
+            writer.add_scalars('AverageIoU_masks_Cityscapes_classes',  {CLASS_NAMES[1]:IoU[0],CLASS_NAMES[2]:IoU[1],
+                                                                    CLASS_NAMES[3]:IoU[2],CLASS_NAMES[4]:IoU[3],
+                                                                    CLASS_NAMES[5]:IoU[4],CLASS_NAMES[6]:IoU[5],
+                                                                    CLASS_NAMES[7]:IoU[6],CLASS_NAMES[8]:IoU[7],
+                                                                    CLASS_NAMES[9]:IoU[8],CLASS_NAMES[10]:IoU[9]})
+            meanAp.reset()
+            
+        
+            
+            print("--- %s seconds ---" % (time.time() - start_time))
+            
+
             
             ## combined plots in tensorboard
             #Box 
-            writer.add_scalars('AveragePrecision_Box_Cityscapes', {'eval_05_095':stat[0][0],'eval_05':stat[0][1],'eval_075': stat[0][2]}, epoch)
-            writer.add_scalars('AverageRecall_Box_Cityscapes', {'eval_areaAll_maxDets1':stat[0][6],'eval_areaAll_maxDets10':stat[0][7],'eval_areaAll_maxDets100':stat[0][8]}, epoch)
-	    #Segmentation
-            writer.add_scalars('AveragePrecision_Segmentation_Cityscapes', {'eval_05_095':stat[1][0],'eval_05':stat[1][1],'eval_075': stat[1][2]}, epoch)
-            writer.add_scalars('AverageRecall_Segmentation_Cityscapes', {'eval_areaAll_maxDets1':stat[1][6],'eval_areaAll_maxDets10':stat[1][7],'eval_areaAll_maxDets100':stat[1][8]}, epoch)
+#             writer.add_scalars('AveragePrecision_Box_Cityscapes', {'eval_05_095':stat[0][0],
+#                                   'eval_05':stat[0][1],
+#                                   'eval_075': stat[0][2]}, epoch)
+#             writer.add_scalars('AverageRecall_Box_Cityscapes', {'eval_areaAll_maxDets1':stat[0][6],
+#                                   'eval_areaAll_maxDets10':stat[0][7],
+#                                   'eval_areaAll_maxDets100':stat[0][8]}, epoch)
+# 	         #Segmentation
+#             writer.add_scalars('AveragePrecision_Segmentation_Cityscapes', {'eval_05_095':stat[1][0],
+#                                   'eval_05':stat[1][1],
+#                                   'eval_075': stat[1][2]}, epoch)
+#             writer.add_scalars('AverageRecall_Segmentation_Cityscapes', {'eval_areaAll_maxDets1':stat[1][6],
+#                                   'eval_areaAll_maxDets10':stat[1][7],
+#                                   'eval_areaAll_maxDets100':stat[1][8]}, epoch)
             
-            # ## === compute precision recall curve ===
-            # images, targets = data_loader_test
-            # predictions = model(images)
-            # print('targets', targets) # nur label von interesse
-            # # labels = 
-            # writer.add_pr_curve('Precision_Recall_LSC', predictions, predictions)
-            # input('break for calculation of precision recall curve')
+        
 
 
-
+        torch.set_num_threads(n_threads)
         ##### save model #####
         torch.save(model.state_dict(), './model/Cityscapes_model/'+ model_name + '.pth')
-
-
-
-
-
-
-        ## --------------------------------------------------------------------------------
-        # pick one image from the test set
-        print('=========')
-        print()
-        #CLASS_NAMES = ['unlabeled', 'ego vehicle','rectification border' ,'out of roi','static','dynamic', 'ground', 'road','sidewalk','parking','rail track','building','wall','fence','guard rail','bridge',  'tunnel',  'pole',  'polegroup',  'traffic light',  'traffic sign',  'vegetation',  'terrain',  'sky',  'person',  'rider',  'car',  'truck',  'bus',  'caravan',  'trailer',  'train',  'motorcycle',  'bicycle',  'license plate']
-        CLASS_NAMES = ['unlabeled', 'person',  'rider',  'car',  'truck',  'bus',  'caravan',  'trailer',  'train',  'motorcycle',  'bicycle']            
-        # put the model in evaluation mode
-        model.eval()
-        
-        ind = 1
-
-        for image_test, _ in dataset_test:# data_loader:
-
-            # image = image_test.numpy().transpose(1,2,0)
-            # print('image.shape', image.shape)
-
-            with torch.no_grad():
-                prediction = model([image_test.to(device)])
-
-            #print('predictions', prediction) #liste
-            #input('stop')
-            pred_score = list(prediction[0]['scores'].cpu().numpy()) # list
-            pred_t = [pred_score.index(x) for x in pred_score if x>=0.5][-1] 
-            #print('pred_t:', np.max(pred_score))
-            # print('predictions', pred_score[0:pred_t])
-
-            masks = (prediction[0]['masks']>0.1).squeeze().detach().cpu().numpy()
-
-            pred_class = [CLASS_NAMES[i] for i in list(prediction[0]['labels'].cpu().numpy())]
-
-            pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(prediction[0]['boxes'].detach().cpu().numpy())]
-            if len(masks.shape) > 2:
-                masks = masks[:pred_t+1]
-
-            pred_boxes = pred_boxes[:pred_t+1]
-            pred_class = pred_class[:pred_t+1]
-
-            detections_v2 = prediction[0]['boxes'][0:pred_t+1]
-            
-            # define colors
-            cmap = plt.get_cmap('tab20b')
-            colors = [cmap(j) for j in np.linspace(0, 1, 60)]
-
-            unique_labels_v2 = detections_v2[:, -1].cpu().unique()
-            n_cls_preds_v2 = len(unique_labels_v2)
-            bbox_colors = random.sample(colors, n_cls_preds_v2)
-
-            labels = prediction[0]['labels']
-
-            if not os.path.exists(os.path.join("../results/Cityscapes/" + model_name + "/resultImages/")):
-                os.makedirs(os.path.join("../results/Cityscapes/" + model_name + "/resultImages/"))
-
-            img_path = "../results/Cityscapes/" + model_name + "/resultImages/_training" + str(ind) + ".jpg"
-
-            instance_segmentation_api(image_test, masks, pred_boxes, pred_class, bbox_colors, CLASS_NAMES, labels, img_path, threshold=0.9, rect_th=2, text_size=0.4, text_th=1)
-
-            ind += 1
-
-
-
-
-        # input('stop after trying to plot result')
-        img, _ = dataset[0] # dataset_test[0]
-
-        # put the model in evaluation mode
-        # model.eval()
-        # with torch.no_grad():
-        #     prediction = model([img.to(device)])
-
-        # print('prediction:', prediction)
-
-        try:
-            # # save preediciton dictonary in file
-            # np.save('./../results/LSCDataset/dict_prediction_LSC.npy', prediction)
-            # convert image, which has been rescaled to 0-1 and had the channels flipped. now: [C, H, W] format
-            im = Image.fromarray(img.mul(255).permute(1, 2, 0).byte().numpy())
-            mask1 = Image.fromarray(prediction[0]['masks'][0, 0].mul(255).byte().cpu().numpy())
-            boxes = Image.fromarray(prediction[0]['boxes'][0, 0].mul(255).byte().cpu().numpy())
-            fig, ax = plt.subplots(1, figsize=(10, 7))
-
-            rgb_mask = random_colour_masks(temp_mask, colours[i])
-
-            im.show()
-            mask1.show()
-            # mask2 = Image.fromarray(prediction[0]['masks'][1, 0].mul(255).byte().cpu().numpy())
-        except:
-            pass
 
 
 if __name__ == '__main__':

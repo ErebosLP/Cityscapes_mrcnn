@@ -27,9 +27,13 @@ class CityscapeDataset(object):
         self.root = root
         #self.data = torchvision.datasets.Cityscapes(root,split=subset, mode='fine', target_type=['instance'], transform=None)
         self.img_paths = glob.glob(root + 'leftImg8bit/' + subset + '/*/*_leftImg8bit.png')
+        self.img_paths.sort()
         self.mask_paths = glob.glob(root + 'gtFine/' + subset + '/*/*_gtFine_instanceIds.png')
+        self.mask_paths.sort()
         self.transforms_in = transforms_in
         self.as_tensor = as_tensor
+        print('num_images: ',len(self.img_paths))
+        print('num_masks: ',len(self.mask_paths))
    
     def __len__(self):
        return len(self.img_paths)
@@ -86,10 +90,17 @@ class CityscapeDataset(object):
         
         # target values to Tensor
         if self.as_tensor:
-            labels = torch.as_tensor(labels, dtype=torch.int64)
-            masks = torch.as_tensor(masks, dtype=torch.uint8)  #load if used for training
-            boxes = torch.as_tensor(boxes, dtype=torch.float32)   
-            area = torch.as_tensor(area, dtype=torch.float32)
+            if len(labels) == 0:
+                
+                labels = torch.zeros(1, dtype=torch.int64)
+                masks = torch.zeros(np.shape(image_mask), dtype=torch.uint8).unsqueeze(0)
+                boxes = torch.as_tensor([0,0,1024,2048],dtype=torch.float32).unsqueeze(0)
+                area = torch.as_tensor([1024*2048], dtype=torch.float32)               
+            else:
+                labels = torch.as_tensor(labels, dtype=torch.int64)
+                masks = torch.as_tensor(np.array(masks), dtype=torch.uint8)  #load if used for training
+                boxes = torch.as_tensor(boxes, dtype=torch.float32)   
+                area = torch.as_tensor(area, dtype=torch.float32)
         
         # is Crowd füllen
         iscrowd = torch.zeros((len(labels),), dtype=torch.int64)
