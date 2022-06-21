@@ -16,22 +16,22 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
     def adjust_lr_and_hard_ratio(optimizer, ep): # function just exist, if top method is run
         
         if ep < 3:# TODO: 10 # warming up
-            lr = 1e-5 * (ep // 5 + 1)
+            lr = 1e-6 * (ep // 5 + 1)
             hard_ratio = 1 * 1e-2
         elif ep < 30:
-            lr = 3e-5
+            lr = 3e-6
             hard_ratio = 7 * 1e-3
         elif ep < 55:
-            lr = 1e-5
+            lr = 1e-6
             hard_ratio = 6 * 1e-3
         elif ep < 80:
-            lr = 5e-6
+            lr = 5e-7
             hard_ratio = 5 * 1e-3
         elif ep < 160:
-            lr = 1e-6
+            lr = 1e-7
             hard_ratio = 4 * 1e-3
         else: # selbstständig hinzugefügt und ander schrittwete abgeändert
-            lr = 5e-7
+            lr = 5e-8
             hard_ratio = 3 * 1e-3
        
         for p in optimizer.param_groups:
