@@ -351,7 +351,7 @@ def main():
 
             # train for one epoch, printing every 10 iterations
             print('start train one epoch')
-            losses_OE = train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
+            losses_OE = train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=100)
             writer.add_scalar('Loss_Cityscapes/train', losses_OE, epoch)
 
             # update the learning rate
@@ -425,7 +425,7 @@ def main():
                 target_box = [dict(boxes = target['boxes'],labels = target['labels'])]
                 
                 meanAp.update(pred_box, target_box)
-                if i%10 == 0:
+                if i%100 == 0:
                     print('Epoch [',epoch,'] ',i,'/',num_imgs,' | ',meanAp.compute())
                     IoU_temp = IoU[IoU_count>0]/IoU_count[IoU_count>0]
                     print('Epoch [',epoch,'] ',i,'/',num_imgs,' | mIoU=', IoU_temp)
@@ -443,23 +443,23 @@ def main():
             writer.add_scalars('AverageRecall_Box_Cityscapes',  {'eval_maxDet_1':Ap['mar_1'],'eval_maxDet_10':Ap['mar_10'],'eval_maxDet_100': Ap['mar_100']}, epoch)
             writer.add_scalars('AverageRecall_Box_Cityscapes',  {'eval_small':Ap['mar_small'],'eval_medium':Ap['mar_medium'],'eval_large': Ap['mar_large']}, epoch)
             try:
-                writer.add_scalars('AveragePrecision_Box_Cityscapes_classes', {CLASS_NAMES[1]:Ap['map_per_class'][0],CLASS_NAMES[2]:Ap['map_per_class'][1],
-                                                                            CLASS_NAMES[3]:Ap['map_per_class'][2],CLASS_NAMES[4]:Ap['map_per_class'][3],
-                                                                            CLASS_NAMES[5]:Ap['map_per_class'][4],CLASS_NAMES[6]:Ap['map_per_class'][5],
-                                                                            CLASS_NAMES[7]:Ap['map_per_class'][6],CLASS_NAMES[8]:Ap['map_per_class'][7],
-                                                                            CLASS_NAMES[9]:Ap['map_per_class'][8],CLASS_NAMES[10]:Ap['map_per_class'][9]})
-                writer.add_scalars('AverageRecall_Box_Cityscapes_classes', {CLASS_NAMES[1]:Ap['mar_100_per_class'][0],CLASS_NAMES[2]:Ap['mar_100_per_class'][1],
-                                                                            CLASS_NAMES[3]:Ap['mar_100_per_class'][2],CLASS_NAMES[4]:Ap['mar_100_per_class'][3],
-                                                                            CLASS_NAMES[5]:Ap['mar_100_per_class'][4],CLASS_NAMES[6]:Ap['mar_100_per_class'][5],
-                                                                            CLASS_NAMES[7]:Ap['mar_100_per_class'][6],CLASS_NAMES[8]:Ap['mar_100_per_class'][7],
-                                                                            CLASS_NAMES[9]:Ap['mar_100_per_class'][8],CLASS_NAMES[10]:Ap['mar_100_per_class'][9]})
+                writer.add_scalars('AveragePrecision_Box_Cityscapes_classes', {CLASS_NAMES[1]:Ap['map_per_class'][1],CLASS_NAMES[2]:Ap['map_per_class'][2],
+                                                                            CLASS_NAMES[3]:Ap['map_per_class'][3],CLASS_NAMES[4]:Ap['map_per_class'][4],
+                                                                            CLASS_NAMES[5]:Ap['map_per_class'][5],CLASS_NAMES[6]:Ap['map_per_class'][6],
+                                                                            CLASS_NAMES[7]:Ap['map_per_class'][7],CLASS_NAMES[8]:Ap['map_per_class'][8],
+                                                                            CLASS_NAMES[9]:Ap['map_per_class'][9],CLASS_NAMES[10]:Ap['map_per_class'][10]},epoch)
+                writer.add_scalars('AverageRecall_Box_Cityscapes_classes', {CLASS_NAMES[1]:Ap['mar_100_per_class'][1],CLASS_NAMES[2]:Ap['mar_100_per_class'][2],
+                                                                            CLASS_NAMES[3]:Ap['mar_100_per_class'][3],CLASS_NAMES[4]:Ap['mar_100_per_class'][4],
+                                                                            CLASS_NAMES[5]:Ap['mar_100_per_class'][5],CLASS_NAMES[6]:Ap['mar_100_per_class'][6],
+                                                                            CLASS_NAMES[7]:Ap['mar_100_per_class'][7],CLASS_NAMES[8]:Ap['mar_100_per_class'][8],
+                                                                            CLASS_NAMES[9]:Ap['mar_100_per_class'][9],CLASS_NAMES[10]:Ap['mar_100_per_class'][10]},epoch)
             except:
                 pass
             writer.add_scalars('AverageIoU_masks_Cityscapes_classes',  {CLASS_NAMES[1]:IoU[0],CLASS_NAMES[2]:IoU[1],
                                                                     CLASS_NAMES[3]:IoU[2],CLASS_NAMES[4]:IoU[3],
                                                                     CLASS_NAMES[5]:IoU[4],CLASS_NAMES[6]:IoU[5],
                                                                     CLASS_NAMES[7]:IoU[6],CLASS_NAMES[8]:IoU[7],
-                                                                    CLASS_NAMES[9]:IoU[8],CLASS_NAMES[10]:IoU[9]})
+                                                                    CLASS_NAMES[9]:IoU[8],CLASS_NAMES[10]:IoU[9]},epoch)
             meanAp.reset()
             
         
