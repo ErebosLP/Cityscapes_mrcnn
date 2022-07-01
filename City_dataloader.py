@@ -7,6 +7,7 @@ Created on Sat May 21 10:17:03 2022
 # Packages
 import numpy as np
 import matplotlib.pyplot as plt
+import torchvision.transforms as T
 from PIL import Image
 from scipy.io import loadmat
 import torch
