@@ -40,8 +40,11 @@ class CityscapeDataset(object):
    
     def __getitem__(self, index):
 
-        img =plt.imread(self.img_paths[index])
+        #img =plt.imread(self.img_paths[index])
+        img = Image.open(self.img_paths[index])
+        img = T.Resize((244,244))(img) 
         image_mask = Image.open(self.mask_paths[index])
+        image_mask = T.Resize((244,244),interpolation = T.InterpolationMode.NEAREST)(image_mask) 
         # Compute IMage id
         image_id = torch.tensor([index])
         
