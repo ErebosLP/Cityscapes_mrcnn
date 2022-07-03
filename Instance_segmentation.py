@@ -390,7 +390,7 @@ def main():
 
             num_imgs=len(dataset_test)
             for i in range(num_imgs):
-                img, target = dataset[i]
+                img, target = dataset_test[i]
                 with torch.no_grad():
                     prediction = model([img.to(device)])
                     
