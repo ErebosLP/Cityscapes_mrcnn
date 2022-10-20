@@ -10,8 +10,8 @@ from coco_eval import CocoEvaluator
 import utils
 
 
-def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
-
+def train_one_epoch(model, optimizer, data_loader, device, epoch, scheduler, print_freq):
+    torch.cuda.empty_cache()
     #in abhängigkeit der epoche wird learning rate und hard ratio verkleinert
     def adjust_lr_and_hard_ratio(optimizer, ep): # function just exist, if top method is run
         
@@ -67,14 +67,15 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
 
 
         # TODO: hinzugefügt aus whale network für lr bestimmung
-        rate, hard_ratio = adjust_lr_and_hard_ratio(optimizer, epoch + 1) #einstellen von Learning rate (in abhängigkeit von der Epoche) und 
+        #rate, hard_ratio = adjust_lr_and_hard_ratio(optimizer, epoch + 1) #einstellen von Learning rate (in abhängigkeit von der Epoche) und 
         # print('change lr: '+str(rate))
         # print('change hard_ratio: ' + str(hard_ratio))
 
         optimizer.zero_grad()
         losses.backward()
         optimizer.step()
-        optimizer.zero_grad() # TODO: hinzugefügt aus whale network
+        
+        #optimizer.zero_grad() # TODO: hinzugefügt aus whale network
 
 
         # if lr_scheduler is not None:

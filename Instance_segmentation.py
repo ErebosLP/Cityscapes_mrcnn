@@ -43,10 +43,13 @@ from pprint import pprint
 # https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html
 
 
-def get_instance_segmentation_model(num_classes, checkpoint_path):
+def get_instance_segmentation_model(num_classes, checkpoint_path, pretrain):
 
     # load an instance segmentation model pre-trained pre-trained on COCO
-    model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
+    if pretrain:
+        model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
+    else:
+        model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=False, pretrained_backbone=False)
 
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -220,16 +223,16 @@ def instance_segmentation_api(img, masks, boxes, pred_cls, colours,
 def main():
     ## setup --------------------------------------------------------------------------
     base_lr = 0.000001
-    numEpochs = 100
+    numEpochs = 200
     learningRate = base_lr
 
 
     # model name   
-    model_name = 'model_Cityscapes_version3_numEpochs' + str(numEpochs) 
+    model_name = 'model_Cityscapes_coco_on_anno_Contrastive_v1_numEpochs' + str(numEpochs) 
     print('model name: ', model_name)
     
     # see if path exist otherwise make new directory
-    out_dir = os.path.join('./results/Cityscapes/', model_name )
+    out_dir = os.path.join('./results/Cityscapes/Anno/', model_name )
     print('out_dir: ', out_dir)
     if not os.path.exists(os.path.join(out_dir,'checkpoint')):
         os.makedirs(os.path.join(out_dir,'checkpoint'))
@@ -250,7 +253,7 @@ def main():
         # Writer will output to ./runs/ directory by default
         comment_name = "numEpocs" + str(numEpochs) 
         # writer = SummaryWriter(comment=comment_name)
-        writer = SummaryWriter("./runs/" + comment_name)
+        writer = SummaryWriter("./runs/Anno/" + model_name)
 
 
         # train on the GPU or on the CPU, if a GPU is not available
@@ -261,13 +264,14 @@ def main():
         num_classes = 11 # 35
         num_img_channels = 3
         # use LSC dataset and defined transformations
-        root = '/export/data/jhembach/cityscapes/' #E:/Datasets/'
-        dataset = CityscapeDataset(root,"train", get_transform(train=True))
+        root_mask ='/export/data/jhembach/cityscapes/' #E:/Datasets/'
+        root_img = '../../dataset/' #root_mask
+        dataset = CityscapeDataset(root_img,root_mask,"train", get_transform(train=True))
         #dataset = torchvision.datasets.Cityscapes(root,split='train', mode='fine', target_type=['instance'], transform=None)
         #import ipdb
         #ipdb.set_trace()
         #dataset_test = torchvision.datasets.Cityscapes(root,split='test', mode='fine', target_type=['instance'],transform=get_transform(train=False))
-        dataset_test = CityscapeDataset(root,"val", get_transform(train=False))
+        dataset_test = CityscapeDataset(root_img,root_mask,"val", get_transform(train=False))
     
 
         # dataset_test = torch.utils.data.Subset(dataset_test, indices[0:1]) #indices[-50:])
@@ -283,7 +287,7 @@ def main():
 
         # define training and validation data loaders
         data_loader = torch.utils.data.DataLoader(
-            dataset, batch_size=2, shuffle=True, num_workers=4,collate_fn=utils.collate_fn)
+            dataset, batch_size=6, shuffle=True, num_workers=4,collate_fn=utils.collate_fn)
 
         data_loader_test = torch.utils.data.DataLoader(
             dataset_test, batch_size=1, shuffle=False, num_workers=1,collate_fn=utils.collate_fn)
@@ -295,7 +299,9 @@ def main():
         # get the model using our helper function
         # model = get_instance_segmentation_model(num_classes) # ausgangsversion
 
-        model = get_instance_segmentation_model(num_classes, initial_checkpoint)
+        model = get_instance_segmentation_model(num_classes, initial_checkpoint,pretrain = False)
+        checkpoint = torch.load('./results/Cityscapes/Anno/V1/contrastive_anno_v1.pth')
+        model.load_state_dict(checkpoint['model_state_dict'])
         # print(model.parameters)
         
 
@@ -320,7 +326,8 @@ def main():
         # construct an optimizer
         #if initial_checkpoint == None:
         params = [p for p in model.parameters() if p.requires_grad]
-        optimizer = torch.optim.Adam(params, lr=learningRate, weight_decay=0.0005)
+        optimizer = torch.optim.AdamW(params, lr=learningRate, weight_decay=0.0005)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, numEpochs)
             # and a learning rate scheduler
             # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
             #                                             step_size=2,
@@ -351,9 +358,9 @@ def main():
 
             # train for one epoch, printing every 10 iterations
             print('start train one epoch')
-            losses_OE = train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=100)
+            losses_OE = train_one_epoch(model, optimizer, data_loader, device, epoch, scheduler, print_freq=100)
             writer.add_scalar('Loss_Cityscapes/train', losses_OE, epoch)
-
+            writer.add_scalar('Lr_Cityscapes',np.array(scheduler.get_lr()[0]),epoch)
             # update the learning rate
             if epoch % 15 == 0:
                 torch.save(model.state_dict(), out_dir + '/checkpoint/%08d_model.pth' % (epoch))
@@ -373,7 +380,7 @@ def main():
                     # 'loss': loss
                     }, out_dir + '/checkpoint/max_valid_model.pth')
 
- 
+            scheduler.step() 
             print('start evaluation')
             n_threads = torch.get_num_threads()
             torch.set_num_threads(1)
@@ -390,7 +397,7 @@ def main():
 
             num_imgs=len(dataset_test)
             for i in range(num_imgs):
-                img, target = dataset[i]
+                img, target = dataset_test[i]
                 with torch.no_grad():
                     prediction = model([img.to(device)])
                     
@@ -398,7 +405,7 @@ def main():
                 try:
                     pred_t = [pred_score.index(x) for x in pred_score if x>threshold_pred][-1]
                     
-                    pred_all_masks = np.zeros((1024,2048))
+                    pred_all_masks = np.zeros((img.shape[1],img.shape[2]))
                     pred_masks = ( prediction[0]['masks']>0.5).squeeze().detach().cpu().numpy()
                     pred_masks = pred_masks[0:pred_t+1]
                     for j in range(len(pred_masks)):
@@ -407,7 +414,7 @@ def main():
                         pred_all_masks = pred_all_masks + temp_mask
             
     
-                    target_all_masks = np.zeros((1024,2048))
+                    target_all_masks = np.zeros((img.shape[1],img.shape[2]))
                     target_masks = ( target['masks']).numpy()
                     for j in range(len(target_masks)):
                         temp_mask = target_masks[j]
