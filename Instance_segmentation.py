@@ -497,7 +497,41 @@ def main():
         torch.set_num_threads(n_threads)
         ##### save model #####
         torch.save(model.state_dict(), './model/Cityscapes_model/'+ model_name + '.pth')
-
-
+        
+        # Panoptic Quality
+        
+        num_imgs=len(dataset_test)
+        PQ = np.zeros([5,1]) #[mean_IoU/SQ, TP, FP/FN, RQ, PQ]
+        for i in range(num_imgs):
+            img, target = dataset_test[i]
+            target_masks = ( target['masks']).numpy()
+            with torch.no_grad():
+                prediction = model([img.to(device)])
+                
+            pred_score = list(prediction[0]['scores'].cpu()) # list  
+            try:
+                pred_t = [pred_score.index(x) for x in pred_score if x>threshold_pred][-1]
+                
+                pred_all_masks = np.zeros((img.shape[1],img.shape[2]))
+                pred_masks = ( prediction[0]['masks']>0.5).squeeze().detach().cpu().numpy()
+                pred_masks = pred_masks[0:pred_t+1]
+                for j in range(len(pred_masks)):
+                    for k in range(len(target_masks)):
+                        IoU = jsc(target_masks[k].reshape(-1),pred_masks[j].reshape(-1), average=None,labels=np.arange(1),zero_division=0.0)
+                        if IoU >= 0.5:
+                            if target['labels'][k].cpu().numpy() == prediction[0]['labels'][j].cpu().numpy():
+                                PQ[0] += IoU
+                                PQ[1] += 1
+                            else:
+                                PQ[2] += 1
+                
+                
+            except:
+                pass
+        PQ[0] = PQ[0] / PQ[1]**2
+        PQ[3] = PQ[1] / (PQ[1] + PQ[2])
+        PQ[4] = PQ[0] * PQ[3]
+        writer.add_scalars('PQ', {'SQ':PQ[0],'RQ':PQ[3], 'PQ':PQ[4]}, epoch)
+        
 if __name__ == '__main__':
     main()
