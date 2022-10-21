@@ -16,11 +16,6 @@ import glob
 import cv2
 
 class CityscapeDataset(object):
-    '''
-    load_shapes()
-    load_image()
-    load_mask()
-    '''
 
     def __init__(self,root_img, root_mask ,  subset, transforms_in=None,as_tensor = True):
         
@@ -82,14 +77,6 @@ class CityscapeDataset(object):
                     labels = labels[:-1]
                     boxes = boxes[:-1]
 
-                #import ipdb
-                #ipdb.set_trace() 
-
-                
-
-                
-             
-
         # Area der Bbox berchenen
         area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
         
@@ -125,26 +112,7 @@ class CityscapeDataset(object):
             
            
         return img, target
-    
-def test_output(dataset):
-    images = dataset[0][0]
-    img_print = images.numpy().transpose(1, 2, 0)
-    fig = plt.figure()
-    plt.imshow(img_print)#.astype('uint8'))
-    plt.colorbar(orientation='vertical')
-    plt.xticks([])
-    plt.yticks([])
-    plt.show()
-    
-    mask = dataset[0][1]['masks']
-    fig = plt.figure(figsize=(8,4))
-    plt.imshow(mask[0])
-    plt.colorbar(orientation='vertical')
-    plt.xticks([])
-    plt.yticks([])
-    plt.show()
-    print(dataset[0][1]['image_id'])
-            
+                
 
 if __name__ == '__main__':
     main()        
