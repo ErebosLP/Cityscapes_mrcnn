@@ -1,11 +1,7 @@
 import os
 import torch
 import numpy as np
-#import LSCDatasetTotalPlant as lscTP
-#import LSCDatasetTotalMultiplePlant as lscTMP
-#import LSCDatasetTotalMultiplePlant_Test as lscTMPtest
 from City_dataloader import CityscapeDataset
-# import torchvision
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
@@ -27,8 +23,6 @@ import utils
 from sklearn.metrics import confusion_matrix
 
 from scipy.io import savemat
-#### ======= source links ========== ####
-# https://www.learnopencv.com/mask-r-cnn-instance-segmentation-with-pytorch/
 
 def evaluate_sgmentation(masks, ground_truths):
     if len(masks.shape) > 2:
@@ -113,17 +107,11 @@ def instance_segmentation_api(img, masks, boxes, pred_cls, colours,
     all_masks = np.zeros((1024,2048))
     for i in range(len_mask):
         temp_mask = masks[i]
-        #temp_mask = temp_mask.numpy().transpose(1, 2, 0)
-        #temp_mask = temp_mask.astype(np.uint8)
         temp_mask = temp_mask * (labels[i].cpu().numpy()*1000+j)
         all_masks = all_masks + temp_mask
         j = j + 1
   
-    #p.savetxt(img_path[:-4]+'_mask.csv', all_masks, delimiter=",")
     savemat(img_path[:-4]+'_mask.mat',{'m': all_masks})    
-    #plt.imshow(all_masks)
-    #mask_path = img_path[:-4]+'_mask.jpg'
-    #plt.savefig(mask_path)
     for i in range(len_mask):
         box_h = (boxes[i][1][1] - boxes[i][0][1])
         box_w = (boxes[i][1][0] - boxes[i][0][0])
@@ -136,13 +124,6 @@ def instance_segmentation_api(img, masks, boxes, pred_cls, colours,
 
         # Blending
         img_cv2 = cv2.addWeighted(img_cv2, 1, rgb_mask, threshold, 0)#, dtype=cv2.CV_32F)
-
-        # colour_list = list(colours[i][0:3])
-        # colour_list_int = [int(x * 255) for x in colour_list] #[:]
-
-        # cv2.rectangle(img_cv2, boxes[i][0], boxes[i][1], color=colour_list_int, thickness=rect_th) # boxes .. numpy.float32
-        # cv2.putText(img_cv2, pred_cls[i], boxes[i][0], cv2.FONT_HERSHEY_SIMPLEX, text_size, colour_list_int, thickness=text_th) # boxes .. numpy.float32
-
         bbox = patches.Rectangle((boxes[i][0][0], boxes[i][0][1]), box_w, box_h,
                 linewidth=2, edgecolor=colours[i][0:3], facecolor='none')
         ax2.add_patch(bbox)
@@ -153,11 +134,7 @@ def instance_segmentation_api(img, masks, boxes, pred_cls, colours,
     plt.imshow(img_cv2.astype('uint8'))
     plt.xticks([])
     plt.yticks([])
-    # plt.axis('off')
-    # save image
-    plt.savefig(img_path, #.replace(".jpg", "-det.jpg"),        
-                    bbox_inches='tight', pad_inches=0.0)
-    # plt.show()
+    plt.savefig(img_path, bbox_inches='tight', pad_inches=0.0)
 
 
 
@@ -176,65 +153,36 @@ def main():
     
 
     threshold_pred = 0.71 # ab welchem threshold sollen predictions angezeigt werden
-    resize_factor = [1]#,0.95,0.9,0.85,0.8,0.75,0.7,0.65,0.6,0.55,0.5,0.45,0.4,0.35,0.3,0.275,0.25,0.225,0.2,0.175,0.15,0.125,0.1,0.075,0.05,0.025]
+    resize_factor = [1]
     
     # ==================================
     for factor in resize_factor:
         # load model
-        print('1')
         model = get_instance_segmentation_model(NUM_CLASSES)
-        #checkpoint = torch.load('./../results/BlumenkohlDataset/model_BlumenkohlDataset_numTrainIm490_numValIm105HerunterskaliertUmFaktor'+ np.str(factor)  +'/checkpoint/' + name_file_folder2 + '.pth')
-        #checkpoint = torch.load('C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/model/Cityscapes_model/model_Cityscapes_version1_numEpochs1.pth')
         checkpoint = torch.load('C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/model/Cityscapes_model/model_Cityscapes_version3_numEpochs50.pth')
-        print('2')
-
+      
         #model.load_state_dict(checkpoint['model_state_dict'])
         model.load_state_dict(checkpoint)
-        #model.load_state_dict(torch.load('./../results/BlumenkohlDataset/model_BlumenkohlDataset_numTrainIm490_numValIm105HerunterskaliertUmFaktor1/checkpoint/' + name_file_folder2 + '.pth')) #model_LSCDataset.pth'))
         model.eval()
-        print('3')
         # move model to the right device
         model.to(device)
-        print('4')
-        name_file = 'model_BlumenkohlDataset_numTrainIm490_Ergebnis_mitFactor' + str(factor) + 'versuch3_50epochs'
+        name_file = 'model_Cityscapes_Ergebnis_' + 'versuch3_50epochs'
         if not os.path.exists(os.path.join("./results/Experiment1/" + name_file + "/resultImages/")):
             os.makedirs(os.path.join("./results/Experiment1/" + name_file + "/resultImages/"))
+            
         # load test images
-        print('5')
         dataset_test = CityscapeDataset('E:/Dataset_test/',"train", get_transform(train=False))
-        #dataset_test = lscTMP.LSCDatasetTotalMultiplePlant(path_data, get_transform(train=False), 5)
-        #indices = torch.randperm(len(dataset_test)).tolist()
-        print('6')
-
-        #Evaluations Werte
-        #data_loader_test = torch.utils.data.DataLoader(
-        #        dataset_test, batch_size=1, shuffle=False, num_workers=1,
-        #        collate_fn=utils.collate_fn)
-        #_, stat = evaluate(model, data_loader_test, device=device) 
-        #input('s')
-        #datei = open("../results/BlumenkohlDataset/" + name_file +'/Evaluierungsmatrix.txt','a')
-        #datei.write(str(stat))
-        #datei.close()
-        #-----------
+        
 
 
 
         datei = open("C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file +'/bboxes.txt','a')
         for i in range(len(dataset_test)):
-            # print(image_file)
-            print('7')
-            
-                
-    
             # pick one image from the test set
             img, target = dataset_test[i]
-            print('8')
             image_id = str(target['image_id'].numpy()[0])
             img_path = "C:/Users/Jean-/sciebo/Documents/Masterprojekt/Code/results/Experiment1/" + name_file + "/resultImages/filename_" + image_id + ".jpg"
             print(img_path)
-
-            # put the model in evaluation mode
-            #model.eval()
             with torch.no_grad():
                 prediction = model([img.to(device)])
             
@@ -243,12 +191,9 @@ def main():
             # Get bounding-box colors
             cmap = plt.get_cmap('tab20b')
             colors = [cmap(j) for j in np.linspace(0, 1, 100)]
-
-
-            # print('predictions', prediction)
             pred_score = list(prediction[0]['scores'].cpu().numpy()) # list
             print('pred_score:', np.max(pred_score))
-            #try:
+            
             pred_t = [pred_score.index(x) for x in pred_score if x>threshold_pred][-1]
 
             labels = prediction[0]['labels']
@@ -269,15 +214,10 @@ def main():
 
             unique_labels_v2 = detections_v2[:, -1].cpu().unique()
             n_cls_preds_v2 = len(unique_labels_v2)
-            #import ipdb
-            #ipdb.set_trace()
             bbox_colors = random.sample(colors, n_cls_preds_v2)
 
             # plot instance segmentation
             instance_segmentation_api(img, masks, pred_boxes, pred_class, bbox_colors, CLASS_NAMES, labels, img_path, threshold=0.9, rect_th=2, text_size=0.4, text_th=1)
-            #except:
-            #    pass
-            #konfusionsmatrix = evaluate_sgmentation(masks, target["masks"].numpy()) 
             datei.write(str(pred_boxes))
             datei.write(str('\n'))
 
