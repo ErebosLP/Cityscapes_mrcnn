@@ -388,11 +388,13 @@ def main():
                 
             except:
                 pass
-        PQ[0] = PQ[0] / PQ[1]**2
+            
+        PQ[0] = PQ[0] / PQ[1]
         PQ[3] = PQ[1] / (PQ[1] + PQ[2])
         PQ[4] = PQ[0] * PQ[3]
         writer.add_scalars('PQ', {'SQ':PQ[0],'RQ':PQ[3], 'PQ':PQ[4]}, epoch)
         print(PQ)
+        
         
 if __name__ == '__main__':
     main()
