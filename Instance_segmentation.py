@@ -171,13 +171,13 @@ def instance_segmentation_api(img, masks, boxes, pred_cls, colours,
 
 def main():
     ## setup --------------------------------------------------------------------------
-    base_lr = 0.000001
+    base_lr = 0.0001
     numEpochs = 200
     learningRate = base_lr
 
 
     # model name   
-    model_name = 'model_Cityscapes_coco_on_anno_Contrastive_v1_numEpochs' + str(numEpochs) 
+    model_name = 'model_Cityscapes_anno_on_anno_Contrastive_v3_numEpochs' + str(numEpochs) 
     print('model name: ', model_name)
     
     # see if path exist otherwise make new directory
@@ -356,68 +356,67 @@ def main():
         torch.save(model.state_dict(), './model/Cityscapes_model/'+ model_name + '.pth')
         
         # Panoptic Quality
-        
-        num_imgs=len(dataset_test)
-        PQ = np.zeros([5,1]) #[mean_IoU/SQ, TP, FP/FN, RQ, PQ]
-        for i in range(num_imgs):
-            img, target = dataset_test[i]
-            target_masks = ( target['masks']).numpy()
-            with torch.no_grad():
-                prediction = model([img.to(device)])
-                
-            pred_score = list(prediction[0]['scores'].cpu()) # list  
-            try:
-                pred_t = [pred_score.index(x) for x in pred_score if x>threshold_pred][-1]
-                
-                pred_all_masks = np.zeros((img.shape[1],img.shape[2]))
-                pred_masks = ( prediction[0]['masks']>0.5).squeeze().detach().cpu().numpy()
-                pred_masks = pred_masks[0:pred_t+1]
-                for j in range(len(pred_masks)):
-                    for k in range(len(target_masks)):
-                        IoU = jsc(target_masks[k].reshape(-1),pred_masks[j].reshape(-1), average=None,labels=np.arange(1),zero_division=0.0)
-                        if IoU >= 0.5:
-                            if target['labels'][k].cpu().numpy() == prediction[0]['labels'][j].cpu().numpy():
-                                PQ[0] += IoU
-                                PQ[1] += 1
-                            else:
-                                PQ[2] += 1
-                
-            
-                if i%50 == 0:
-                    image_id = str(target['image_id'].numpy()[0])
-                    img_path = out_dir + "/filename_" + image_id + ".jpg"
-                    # Get bounding-box colors
-                    cmap = plt.get_cmap('tab20b')
-                    colors = [cmap(j) for j in np.linspace(0, 1, 100)]
-                        
-                    labels = target['labels']
-                    masks = target['masks'].squeeze().detach().cpu().numpy()
-                    
-                    
-                    pred_class = [CLASS_NAMES[i] for i in list(prediction[0]['labels'].cpu().numpy())]
-        
-                    pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(target['boxes'].detach().cpu().numpy())]
-        
-                    pred_boxes = pred_boxes[:pred_t+1]
-                    pred_class = pred_class[:pred_t+1]
-                    print('pred_class (>'+ str(threshold_pred*100) +'%):', pred_class)
-        
-                    detections_v2 = prediction[0]['boxes'][0:pred_t+1] # with prediction > 0.5
-        
-                    unique_labels_v2 = detections_v2[:, -1].cpu().unique()
-                    n_cls_preds_v2 = len(unique_labels_v2)
-                    bbox_colors = random.sample(colors, n_cls_preds_v2)
-        
-                    # plot instance segmentation
-                    instance_segmentation_api(img, masks, pred_boxes, pred_class, bbox_colors, CLASS_NAMES, labels, img_path, threshold=0.9, rect_th=2, text_size=0.4, text_th=1)    
-            except:
-                pass
-               
-        PQ[0] = PQ[0] / PQ[1]
-        PQ[3] = PQ[1] / (PQ[1] + PQ[2])
-        PQ[4] = PQ[0] * PQ[3]
-        writer.add_scalars('PQ', {'SQ':PQ[0],'RQ':PQ[3], 'PQ':PQ[4]}, epoch)
-        print(PQ)
+        if epoch%50 == 0  or epoch == numEpochs -1:
+            num_imgs=len(dataset_test)
+            PQ = np.zeros([5,1]) #[mean_IoU/SQ, TP, FP/FN, RQ, PQ]
+            for i in range(num_imgs):
+                img, target = dataset_test[i]
+                target_masks = ( target['masks']).numpy()
+                with torch.no_grad():
+                    prediction = model([img.to(device)])
+
+                pred_score = list(prediction[0]['scores'].cpu()) # list  
+                try:
+                    pred_t = [pred_score.index(x) for x in pred_score if x>threshold_pred][-1]
+
+                    pred_all_masks = np.zeros((img.shape[1],img.shape[2]))
+                    pred_masks = ( prediction[0]['masks']>0.5).squeeze().detach().cpu().numpy()
+                    pred_masks = pred_masks[0:pred_t+1]
+                    for j in range(len(pred_masks)):
+                        for k in range(len(target_masks)):
+                            IoU = jsc(target_masks[k].reshape(-1),pred_masks[j].reshape(-1), average=None,labels=np.arange(1),zero_division=0.0)
+                            if IoU >= 0.5:
+                                if target['labels'][k].cpu().numpy() == prediction[0]['labels'][j].cpu().numpy():
+                                    PQ[0] += IoU
+                                    PQ[1] += 1
+                                else:
+                                    PQ[2] += 1
+
+
+                    if i%50 == 0 and epoch == numEpochs -1:
+                        image_id = str(target['image_id'].numpy()[0])
+                        img_path = out_dir + "/filename_" + image_id + ".jpg"
+                        # Get bounding-box colors
+                        cmap = plt.get_cmap('tab20b')
+                        colors = [cmap(j) for j in np.linspace(0, 1, 100)]
+
+                        labels = target['labels']
+                        masks = target['masks'].squeeze().detach().cpu().numpy()
+
+
+                        pred_class = [CLASS_NAMES[i] for i in list(prediction[0]['labels'].cpu().numpy())]
+
+                        pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(target['boxes'].detach().cpu().numpy())]
+
+                        pred_boxes = pred_boxes[:pred_t+1]
+                        pred_class = pred_class[:pred_t+1]
+
+                        detections_v2 = prediction[0]['boxes'][0:pred_t+1] # with prediction > 0.5
+
+                        unique_labels_v2 = detections_v2[:, -1].cpu().unique()
+                        n_cls_preds_v2 = len(unique_labels_v2)
+                        bbox_colors = random.sample(colors, n_cls_preds_v2)
+
+                        # plot instance segmentation
+                        instance_segmentation_api(img, masks, pred_boxes, pred_class, bbox_colors, CLASS_NAMES, labels, img_path, threshold=0.9, rect_th=2, text_size=0.4, text_th=1)    
+                except:
+                    pass
+
+                PQ[0] = PQ[0] / PQ[1]
+                PQ[3] = PQ[1] / (PQ[1] + PQ[2])
+                PQ[4] = PQ[0] * PQ[3]
+                writer.add_scalars('PQ', {'SQ':PQ[0],'RQ':PQ[3], 'PQ':PQ[4]}, epoch)
+                print(PQ)
         
 if __name__ == '__main__':
     main()
