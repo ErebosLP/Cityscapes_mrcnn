@@ -202,7 +202,7 @@ def main():
         # use LSC dataset and defined transformations
         root_mask ='/export/data/jhembach/cityscapes/' #E:/Datasets/'
         root_img = root_mask
-        dataset = CityscapeDataset(root_img,root_mask,"train", get_transform(train=True))
+        dataset = CityscapeDataset(root_img,root_mask,"train", get_transform(train=True), factor)
         dataset_test = CityscapeDataset(root_img,root_mask,"val", get_transform(train=False))
 
         # define training and validation data loaders
@@ -239,7 +239,7 @@ def main():
             
             # train for one epoch, printing every 10 iterations
             print('start train one epoch')
-            losses_OE = train_one_epoch(model, optimizer, data_loader, device, epoch, scheduler, print_freq=100, factor)
+            losses_OE = train_one_epoch(model, optimizer, data_loader, device, epoch, scheduler, print_freq=100)
             writer.add_scalar('Loss_Cityscapes/train', losses_OE, epoch)
             writer.add_scalar('Lr_Cityscapes',np.array(scheduler.get_lr()[0]),epoch)
             # update the learning rate

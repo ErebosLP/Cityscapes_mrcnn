@@ -17,7 +17,7 @@ import cv2
 
 class CityscapeDataset(object):
 
-    def __init__(self,root_img, root_mask ,  subset, transforms_in=None,as_tensor = True):
+    def __init__(self,root_img, root_mask ,  subset, transforms_in=None,as_tensor = True, factor = 1):
         
         self.subset = subset
         self.root_img = root_img
@@ -30,11 +30,12 @@ class CityscapeDataset(object):
         self.mask_paths.sort()
         self.transforms_in = transforms_in
         self.as_tensor = as_tensor
+        self.factor =  factor
         print('num_images: ',len(self.img_paths))
         print('num_masks: ',len(self.mask_paths))
    
     def __len__(self):
-       return len(self.img_paths)
+       return len(self.img_paths / self.factor)
    
     def __getitem__(self, index):
 
