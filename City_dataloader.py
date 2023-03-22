@@ -17,7 +17,7 @@ import cv2
 
 class CityscapeDataset(object):
 
-    def __init__(self,root_img, root_mask ,  subset, transforms_in=None,as_tensor = True, factor = 1):
+    def __init__(self,root_img, root_mask ,  subset,factor, transforms_in=None,as_tensor = True):
         
         self.subset = subset
         self.root_img = root_img

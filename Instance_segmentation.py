@@ -202,8 +202,8 @@ def main():
         # use LSC dataset and defined transformations
         root_mask ='/export/data/jhembach/cityscapes/' #E:/Datasets/'
         root_img = root_mask
-        dataset = CityscapeDataset(root_img,root_mask,"train", get_transform(train=True), factor)
-        dataset_test = CityscapeDataset(root_img,root_mask,"val", get_transform(train=False))
+        dataset = CityscapeDataset(root_img,root_mask,"train",factor, get_transform(train=True))
+        dataset_test = CityscapeDataset(root_img,root_mask,"val",1, get_transform(train=False))
 
         # define training and validation data loaders
         data_loader = torch.utils.data.DataLoader(
