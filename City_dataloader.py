@@ -35,7 +35,7 @@ class CityscapeDataset(object):
         print('num_masks: ',len(self.mask_paths))
    
     def __len__(self):
-       return len(self.img_paths / self.factor)
+       return int(len(self.img_paths )/ self.factor)
    
     def __getitem__(self, index):
 
