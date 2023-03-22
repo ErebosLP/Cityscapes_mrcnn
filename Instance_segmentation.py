@@ -176,6 +176,7 @@ def main():
     learningRate = base_lr
 
     for factor in [100,10,4,2]:
+        torch.cuda.empty_cache()
         # model name   
         model_name = 'model_Cityscapes_random_' + str(numEpochs)+ '_datafactor_' + str(factor)
         print('model name: ', model_name)
@@ -200,13 +201,13 @@ def main():
         num_img_channels = 3
         # use LSC dataset and defined transformations
         root_mask ='/export/data/jhembach/cityscapes/' #E:/Datasets/'
-        root_img = '../../dataset/' #root_mask
+        root_img = root_mask
         dataset = CityscapeDataset(root_img,root_mask,"train", get_transform(train=True))
         dataset_test = CityscapeDataset(root_img,root_mask,"val", get_transform(train=False))
 
         # define training and validation data loaders
         data_loader = torch.utils.data.DataLoader(
-            dataset, batch_size=6, shuffle=True, num_workers=4,collate_fn=utils.collate_fn)
+            dataset, batch_size=4, shuffle=True, num_workers=4,collate_fn=utils.collate_fn)
 
         data_loader_test = torch.utils.data.DataLoader(
             dataset_test, batch_size=1, shuffle=False, num_workers=1,collate_fn=utils.collate_fn)
