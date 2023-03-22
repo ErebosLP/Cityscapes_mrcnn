@@ -239,7 +239,7 @@ def main():
             
             # train for one epoch, printing every 10 iterations
             print('start train one epoch')
-            losses_OE = train_one_epoch(model, optimizer, data_loader, device, epoch, scheduler, print_freq=100)
+            losses_OE = train_one_epoch(model, optimizer, data_loader, device, epoch, scheduler, print_freq=100, factor)
             writer.add_scalar('Loss_Cityscapes/train', losses_OE, epoch)
             writer.add_scalar('Lr_Cityscapes',np.array(scheduler.get_lr()[0]),epoch)
             # update the learning rate
@@ -272,7 +272,7 @@ def main():
             IoU_count = np.zeros((10,))
 
             num_imgs=len(dataset_test)
-            for i in range(int(num_imgs/factor)):
+            for i in range(int(num_imgs)):
                 img, target = dataset_test[i]
                 with torch.no_grad():
                     prediction = model([img.to(device)])
