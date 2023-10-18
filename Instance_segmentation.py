@@ -172,17 +172,22 @@ def instance_segmentation_api(img, masks, boxes, pred_cls, colours,
 def main():
     ## setup --------------------------------------------------------------------------
     base_lr = 0.0001
-    numEpochs = 400
+    numEpochs = 200
     learningRate = base_lr
+    seed = 42
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
-    for factor in [100,10,4,2]:
+    for factor in [1]:
         torch.cuda.empty_cache()
         # model name   
-        model_name = 'model_Cityscapes_random_' + str(numEpochs)+ '_datafactor_' + str(factor)
+        model_name = 'model_Cityscapes_' + str(numEpochs)+ '_vicreg_0910'
         print('model name: ', model_name)
         
         # see if path exist otherwise make new directory
-        out_dir = os.path.join('./results/Cityscapes/Anno/', model_name )
+        out_dir = os.path.join('/cache/jhembach/results/Cityscapes/Barlow/', model_name )
         print('out_dir: ', out_dir)
         if not os.path.exists(os.path.join(out_dir,'checkpoint')):
             os.makedirs(os.path.join(out_dir,'checkpoint'))
@@ -216,8 +221,8 @@ def main():
 
         #### Now let's instantiate the model and the optimizer ####
         model = get_instance_segmentation_model(num_classes,pretrain = False)
-        #checkpoint = torch.load('./results/Cityscapes/Anno/V1/contrastive_anno_v1.pth')
-        #model.load_state_dict(checkpoint['model_state_dict'])
+        checkpoint = torch.load('/cache/jhembach/results/barlow_loss/model_numImgs_100000_numEpochs_25_examples_14400_factor_pos_1_vicreg_0910/model/contrastive_vicreg_0910.pth')
+        model.load_state_dict(checkpoint['model_state_dict'])
         
         # move model to the right device
         model.to(device)

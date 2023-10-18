@@ -11,12 +11,12 @@ from collections import OrderedDict
 import segmentation_models_pytorch as smp
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
-
+import ipdb
 num_classes = 11
 model = smp.Unet(encoder_name='resnet50', encoder_weights=None, classes=16, activation='sigmoid')
-source_path = 'C:/Users/Jean-/Desktop/Anno/V1/'
+source_path = '/cache/jhembach/results/barlow_loss/model_numImgs_100000_numEpochs_25_examples_14400_factor_pos_1_vicreg_0910/model/'
 checkpoint = torch.load(source_path + 'max_valid_model.pth')
-model.load_state_dict(checkpoint['model_state_dict'])
+#model.load_state_dict(checkpoint['model_state_dict'])
 
 mask_model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
 # get number of input features for the classifier
@@ -36,18 +36,20 @@ checkpoint2 = mask_model.state_dict()
 
 keys_unet = checkpoint['model_state_dict'].keys()
 resnet_checkpoint = OrderedDict()
-import ipdb
 for key in keys_unet:
     
     temp_key = key.split('encoder.')
     if temp_key[0] == '':
         if not ('num_batches_tracked' in key):
-            new_key = 'backbone.body.' + temp_key[1]
-            resnet_checkpoint[new_key] = checkpoint['model_state_dict'][key]
+            if temp_key[1] == '':
+
+                new_key = 'backbone.body.' + temp_key[2]
+                
+                resnet_checkpoint[new_key] = checkpoint['model_state_dict'][key]
         
 for key in  checkpoint2.keys():
+
     if not 'backbone.body' in key:
         resnet_checkpoint[key] = checkpoint2[key]
-        
 mask_model.load_state_dict(resnet_checkpoint)
-torch.save({'model_state_dict': mask_model.state_dict()},source_path +'/contrastive_anno_v1.pth')         
+torch.save({'model_state_dict': mask_model.state_dict()},source_path +'/contrastive_vicreg_0910.pth')         
